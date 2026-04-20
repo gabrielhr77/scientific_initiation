@@ -12,16 +12,16 @@ data = np.array(data)
 m,n=data.shape #M é as linhas e N é as colunas
 np.random.shuffle(data)
 
-data_dev=data[0:1000].T #dados para a comparação posterior
-Y_dev=data_dev[0]
-X_dev=data_dev[1:n]
+data_teste=data[0:1000].T #dados para a comparação posterior
+Y_teste=data_teste[0]
+X_teste=data_teste[1:n]
 
 data_train=data[1000:m].T #dados para o treinamento da rede
 Y_train=data_train[0]
 X_train=data_train[1:n]
 
 X_train=X_train/255.0
-X_dev=X_dev/255.0
+X_teste=X_teste/255.0
 
 print(Y_train)
 
@@ -38,10 +38,10 @@ def init_params():
     b2=np.zeros((10,1))
     return W1,b1,W2,b2
 
-def ReLU(Z):
+def ReLU(Z):# É FUNÇÃO DE ATIVAÇÃO
     return np.maximum(0,Z) #vai em cada elemento de Z (cada Zi), se for maior que 0, retorna Zi, se for menor que 0, retorna Zi
 
-def softmax(Z): #retorna aquela probabilidade definida no NOTES
+def softmax(Z): #retorna aquela probabilidade definida no NOTES É FUNÇÃO DE ATIVAÇÃO
     #return np.exp(Z)/np.sum(np.exp(Z)) #é a soma das linhas (retorna a soma dos elementos de cada coluna, retornando uma linha só com o valor da soma de sua coluna)
     expZ=np.exp(Z-np.max(Z,axis=0,keepdims=True))
     return expZ/np.sum(expZ,axis=0,keepdims=True)
@@ -80,23 +80,33 @@ def update_params(W1,b1,W2,b2,dW1,db1,dW2,db2,a):
     return W1,b1,W2,b2
 
 def get_predicoes(A):
-    return np.argmax(A,0)
+    return np.argmax(A,0)#ARGMAX retorna o índice de maior valor, ou seja, escolhe a maior probabilidade dentro das probabilidades calculadas pelo SOFTMAX. é uma das etapas de PÓS-PROCESSAMENTO
 
 def get_accuracy(predicao,Y):
     #print(predicao,Y)
     return np.sum(predicao==Y)/Y.size
 
 #aqui é calculado o LOSS
-def gradiente_descendente(X,Y,iterac,a): 
+#tem que receber os dados treinados e os dados de teste 
+def gradiente_descendente(X_train,Y_train,X_teste,Y_teste,iterac,a): 
     W1,b1,W2,b2=init_params()
     for i in range(iterac):
-        Z1,A1,Z2,A2=forw_prop(W1,b1,W2,b2,X)
-        dW1,db1,dW2,db2=back_prop(Z1,A1,Z2,A2,W2,X,Y)
+        Z1,A1,Z2,A2=forw_prop(W1,b1,W2,b2,X_train)
+        dW1,db1,dW2,db2=back_prop(Z1,A1,Z2,A2,W2,X_train,Y_train)
         W1,b1,W2,b2=update_params(W1,b1,W2,b2,dW1,db1,dW2,db2,a)
         
         if (i+1)%500==0:
-            print("\nITERACAO NUMERO: ",i+1)
-            print("PRECISAO: ",get_accuracy(get_predicoes(A2),Y))
+            predicaoTreino=get_predicoes(A2)
+            acuraciaTreino=get_accuracy(predicaoTreino,Y_train)
+
+            #preciso fazer uum forward propagation para encontrar as predições de teste
+            _,_,_,A2_teste=forw_prop(W1,b1,W2,b2,X_teste)
+            predicaoTeste=get_predicoes(A2_teste)
+            acuraciaTeste=get_accuracy(predicaoTeste,Y_teste)
+
+            print("\nIteracao numero: ",i+1)
+            print(f"Precisao TREINO: {acuraciaTreino}, TESTE: {acuraciaTeste}")
+            #print("PRECISAO: ",get_accuracy(get_predicoes(A2),Y_train))
     return W1,b1,W2,b2
     
 
@@ -113,13 +123,13 @@ def testar_predicoes(index,W1,b1,W2,b2):
     print("PREDICAO: ",predicao)
     print("LABEL: ",label)
     imagemAtual=imagemAtual.reshape((28,28))*255
-    plt.gray()
+    '''plt.gray()
     plt.imshow(imagemAtual,interpolation='nearest')
-    plt.show()
+    plt.show()'''
 
 
 #-------------------instância da rede-------------------
 
-W1,b1,W2,b2=gradiente_descendente(X_train,Y_train,5000,0.01)
+W1,b1,W2,b2=gradiente_descendente(X_train,Y_train,X_teste,Y_teste,10000,0.01)
 for i in range(10):    
     testar_predicoes(i,W1,b1,W2,b2)
