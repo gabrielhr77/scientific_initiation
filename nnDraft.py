@@ -86,8 +86,8 @@ def get_accuracy(predicao,Y):
     #print(predicao,Y)
     return np.sum(predicao==Y)/Y.size
 
-
-def gradiente_descendente(X,Y,iterac,a):
+#aqui é calculado o LOSS
+def gradiente_descendente(X,Y,iterac,a): 
     W1,b1,W2,b2=init_params()
     for i in range(iterac):
         Z1,A1,Z2,A2=forw_prop(W1,b1,W2,b2,X)
@@ -99,4 +99,27 @@ def gradiente_descendente(X,Y,iterac,a):
             print("PRECISAO: ",get_accuracy(get_predicoes(A2),Y))
     return W1,b1,W2,b2
     
+
+
+def faz_predicoes(X,W1,b1,W2,b2):
+    _,_,_,A2=forw_prop(W1,b1,W2,b2,X)
+    predicoes=get_predicoes(A2)
+    return predicoes
+
+def testar_predicoes(index,W1,b1,W2,b2):
+    imagemAtual=X_train[:,index,None].reshape(-1,1)
+    predicao=faz_predicoes(imagemAtual,W1,b1,W2,b2)
+    label=Y_train[index]
+    print("PREDICAO: ",predicao)
+    print("LABEL: ",label)
+    imagemAtual=imagemAtual.reshape((28,28))*255
+    plt.gray()
+    plt.imshow(imagemAtual,interpolation='nearest')
+    plt.show()
+
+
+#-------------------instância da rede-------------------
+
 W1,b1,W2,b2=gradiente_descendente(X_train,Y_train,5000,0.01)
+for i in range(10):    
+    testar_predicoes(i,W1,b1,W2,b2)
