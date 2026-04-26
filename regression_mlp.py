@@ -2,7 +2,7 @@ import torch as tc
 from torch import nn
 from torch.utils.data import TensorDataset,DataLoader
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 
 G=1
@@ -49,11 +49,11 @@ class RedeGravitacional(nn.Module):
         super().__init__()
 
         '''self.net=nn.Sequential(
-            nn.Linear(2,32),
+            nn.Linear(2,8),
             nn.Tanh(),
-            nn.Linear(32,32),
+            nn.Linear(8,8),
             nn.Tanh(),
-            nn.Linear(32,2)
+            nn.Linear(8,2)
         )'''
         '''self.net=nn.Sequential(
             nn.Linear(2,64),
@@ -87,6 +87,7 @@ Y_tensor=tc.tensor(Y,dtype=tc.float32)
 dataSet=TensorDataset(X_tensor,Y_tensor)
 
 trainLoader=DataLoader(dataSet,batch_size=64,shuffle=True)
+#trainLoader=DataLoader(dataSet,batch_size=8,shuffle=True)
 print('..')
 for inputs, targets in trainLoader:
     print(inputs.shape)
@@ -95,7 +96,8 @@ for inputs, targets in trainLoader:
 
 #rodando o loop de treino
 for epoca in range(10):
-    print(f'\nComecando epoca {epoca+1}\n')
+    print('\n-----------------------------------------------')
+    print(f'Comecando epoca {epoca+1}')
     loss_epoca=0.0
     for inputs, alvos in trainLoader:
         predicao=modelo(inputs)
@@ -105,7 +107,7 @@ for epoca in range(10):
         optimizer.step()
         loss_epoca+=loss.item()
     loss_medio=loss_epoca/len(trainLoader)
-    print(f'Epoca {epoca+1}: {loss_medio}\n')
+    print(f'Epoca {epoca+1}: {loss_medio}')
 
 teste=tc.tensor([[3/5,4/5]],dtype=tc.float32)
 print(f'TESTE COM VALOR DESCONHECIDO: {modelo(teste)}') #predição normalizada da rede [ax_pred,ay_pred]
@@ -114,3 +116,36 @@ pred = modelo(teste).detach().numpy()
 pred_real = pred * sigma
 
 print(pred_real[0]) #valores de [ax_pred,ay_pred] DESNORMALIZADOS
+
+
+#PLOT GERADO POR IA PARA OBSERVAR APRENDIZADO PELA REDE (não autoral)
+# grade de pontos 
+xs=np.linspace(-5,5,20) 
+ys=np.linspace(-5,5,20) 
+
+Xg,Yg=np.meshgrid(xs,ys) 
+
+Ux=np.zeros_like(Xg) 
+Uy=np.zeros_like(Yg) 
+for i in range(len(xs)): 
+    for j in range(len(ys)): 
+        x=Xg[j,i] 
+        y=Yg[j,i] 
+        r=np.sqrt(x*x+y*y) 
+        # evita singularidade central 
+        if r<1.5: 
+            continue # mesma normalização usada no treino 
+        entrada=tc.tensor( [[x/5,y/5]], dtype=tc.float32 ) 
+        pred=modelo(entrada).detach().numpy()[0] # desnormaliza 
+        pred=pred*sigma 
+        
+        Ux[j,i]=pred[0] 
+        Uy[j,i]=pred[1] 
+        mag=np.sqrt(Ux**2+Uy**2) 
+plt.quiver( Xg,Yg, Ux,Uy, mag ) 
+plt.colorbar() 
+plt.figure(figsize=(8,8)) 
+#plt.quiver( Xg,Yg, Ux,Uy ) 
+plt.title("Campo gravitacional aprendido") 
+plt.axis('equal') 
+plt.show()
