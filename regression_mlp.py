@@ -71,6 +71,15 @@ class RedeGravitacional(nn.Module):
             nn.Tanh(),
             nn.Linear(64,2)
         )
+        '''self.net=nn.Sequential(
+            nn.Linear(2,128),
+            nn.Tanh(),
+            nn.Linear(128,128),
+            nn.Tanh(),
+            nn.Linear(128,128),
+            nn.Tanh(),
+            nn.Linear(128,2)
+        )'''
 
     def forward(self,x):
         return self.net(x)
@@ -86,19 +95,20 @@ Y_tensor=tc.tensor(Y,dtype=tc.float32)
 
 dataSet=TensorDataset(X_tensor,Y_tensor)
 
+#trainLoader=DataLoader(dataSet,batch_size=128,shuffle=True)
 trainLoader=DataLoader(dataSet,batch_size=64,shuffle=True)
-#trainLoader=DataLoader(dataSet,batch_size=8,shuffle=True)
 print('..')
 for inputs, targets in trainLoader:
     print(inputs.shape)
     print(targets.shape)
     break
-
+historico_loss=[]
 #rodando o loop de treino
 for epoca in range(10):
     print('\n-----------------------------------------------')
     print(f'Comecando epoca {epoca+1}')
     loss_epoca=0.0
+
     for inputs, alvos in trainLoader:
         predicao=modelo(inputs)
         loss=loss_padrao(predicao,alvos)
@@ -107,6 +117,7 @@ for epoca in range(10):
         optimizer.step()
         loss_epoca+=loss.item()
     loss_medio=loss_epoca/len(trainLoader)
+    historico_loss.append(loss_medio)
     print(f'Epoca {epoca+1}: {loss_medio}')
 
 teste=tc.tensor([[3/5,4/5]],dtype=tc.float32)
@@ -141,11 +152,25 @@ for i in range(len(xs)):
         
         Ux[j,i]=pred[0] 
         Uy[j,i]=pred[1] 
-        mag=np.sqrt(Ux**2+Uy**2) 
-plt.quiver( Xg,Yg, Ux,Uy, mag ) 
-plt.colorbar() 
-plt.figure(figsize=(8,8)) 
-#plt.quiver( Xg,Yg, Ux,Uy ) 
-plt.title("Campo gravitacional aprendido") 
-plt.axis('equal') 
+mag=np.sqrt(Ux**2+Uy**2) 
+#vetores normalizados
+#Ux_plot=Ux/(mag+1e-8)
+#Uy_plot=Uy/(mag+1e-8)
+
+fig,ax=plt.subplots(1,2,figsize=(14,6))
+ax[0].plot(historico_loss)
+ax[0].set_yscale('log')
+ax[0].set_title("Curva de aprendizado")
+ax[0].set_xlabel("Épocas")
+ax[0].set_ylabel("Loss (MSE)")
+
+#q=ax[1].quiver(Xg,Yg,Ux_plot,Uy_plot,mag) 
+q=ax[1].quiver(Xg,Yg,Ux,Uy,mag) 
+fig.colorbar(q,ax=ax[1],label="Magnitude da aceleração")
+
+ax[1].set_title("Campo gravitacional aprendido pela rede")
+
+ax[1].axis('equal')
+
+plt.tight_layout() 
 plt.show()
