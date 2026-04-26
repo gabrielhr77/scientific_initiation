@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 G=1
-M=1
+M=10
 alpha=1e-8
 
 n=50000
@@ -62,13 +62,22 @@ class RedeGravitacional(nn.Module):
             nn.Tanh(),
             nn.Linear(64,2)
         )'''
-        self.net=nn.Sequential(
+        '''self.net=nn.Sequential(
             nn.Linear(2,64),
             nn.Tanh(),
             nn.Linear(64,64),
             nn.Tanh(),
             nn.Linear(64,64),
             nn.Tanh(),
+            nn.Linear(64,2)
+        )'''
+        self.net=nn.Sequential(
+            nn.Linear(2,64),
+            nn.ReLU(),
+            nn.Linear(64,64),
+            nn.ReLU(),
+            nn.Linear(64,64),
+            nn.ReLU(),
             nn.Linear(64,2)
         )
         '''self.net=nn.Sequential(
@@ -166,7 +175,7 @@ ax[0].set_ylabel("Loss (MSE)")
 
 #q=ax[1].quiver(Xg,Yg,Ux_plot,Uy_plot,mag) 
 q=ax[1].quiver(Xg,Yg,Ux,Uy,mag) 
-fig.colorbar(q,ax=ax[1],label="Magnitude da aceleração")
+fig.colorbar(q,ax=ax[1],label="Magnitude da aceleração") #esse é o CAMPO VETORIAL GRAVITACIONAL
 
 ax[1].set_title("Campo gravitacional aprendido pela rede")
 
