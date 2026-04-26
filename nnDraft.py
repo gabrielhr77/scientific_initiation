@@ -6,7 +6,7 @@ import pandas as pd
 #-------------------pegando os dados-------------------
 data = pd.read_csv('dados/mnist_test.csv')
 
-print(data.head())
+#print(data.head())
 
 data = np.array(data)
 m,n=data.shape #M é as linhas e N é as colunas
@@ -23,7 +23,7 @@ X_train=data_train[1:n]
 X_train=X_train/255.0
 X_teste=X_teste/255.0
 
-print(Y_train)
+#print(Y_train)
 
 
 #-------------------funcionamento da rede-------------------
@@ -130,6 +130,6 @@ def testar_predicoes(index,W1,b1,W2,b2):
 
 #-------------------instância da rede-------------------
 
-W1,b1,W2,b2=gradiente_descendente(X_train,Y_train,X_teste,Y_teste,10000,0.01)
+W1,b1,W2,b2=gradiente_descendente(X_train,Y_train,X_teste,Y_teste,3000,0.01)
 for i in range(10):    
     testar_predicoes(i,W1,b1,W2,b2)
