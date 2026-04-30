@@ -1,4 +1,5 @@
 #nesse código estou prevendo como a dinamica gravitacional ocorre em cooordenadas absolutas, o que é errado, pois a rede "pensa" que se eu deslocar a órbita 10 unidades à direita a situação é completamente diferente, sem levar em conta que o que importa  é a distância relativa
+#PROXIMA ETAPA: gerar a simulação de 100000 steps padrão e treinar a rede com cada vez mais epocas para ver a evolução
 import numpy as np, matplotlib.pyplot as plt
 import torch as tc
 from torch import nn
@@ -85,7 +86,6 @@ def atualizaAceleracoes_posicoes(r1,r2,m1,m2):
 
     return a1,a2
 
-
 def atualizaAceleracoes_estado(estado,m1,m2):
     x1,y1,vx1,vy1,\
     x2,y2,vx2,vy2,=estado
@@ -99,7 +99,6 @@ def atualizaAceleracoes_estado(estado,m1,m2):
     a2=-G*m1*(r1-r2)/r12**3
 
     return a1,a2
-
 
 def calculaEnergiaDoSistema(estado,m1,m2):
     x1,y1,vx1,vy1,\
@@ -134,7 +133,7 @@ estado0=np.array([
      10, -10, -.2, -.6
 ],dtype=float)
 
-num_simul=100
+num_simul=50
 
 epsilon=1e-12 
 dt=0.00025
@@ -146,7 +145,7 @@ j=0
 
 todasTrajetorias=[]
 while j<num_simul:
-    print(j)
+    print("\nSimulacao numero: ",j)
     #E_TOTAL=calculaEnergiaDoSistema
     x1,y1,vx1,vy1,\
     x2,y2,vx2,vy2=estado0
@@ -159,14 +158,14 @@ while j<num_simul:
         x1,y1,vx1,vy1,
         x2,y2,vx2,vy2
     ]])
-    print("ESTADO0: ",estado0)
-    print("MASSA ORIGINAL: ",m1simulacao,m2simulacao)
-    print("\nESTADO GERADO: ",estado)
+    #print("ESTADO0: ",estado0)
+    #print("MASSA ORIGINAL: ",m1simulacao,m2simulacao)
+    #print("\nESTADO GERADO: ",estado)
     
     
 
     print("\nMASSA ALTERADA: ",m1simulacao,m2simulacao,"\n")
-    print("SOMA MASSAS:",m1simulacao+m2simulacao)
+    #print("SOMA MASSAS:",m1simulacao+m2simulacao)
 
     r1=estado[0:2]
     v1=estado[2:4]
@@ -299,14 +298,17 @@ Y=[]#vai ser o resultado final da rede almejado
 k=10
 
 #gerando o vetor de inputs e de alvos para cada input
+#ISSO ESTÁ DEMORANDO MUITO
 for traj in todasTrajetorias:
     trajetoriaGerada=traj['dados']
     m1=traj['m1']
     m2=traj['m2']
     for i in range(len(traj['dados'])-200):
         #k=np.random.randint(1,20)
-        
-        estadoT=np.concatenate([trajetoriaGerada[i,:8],[m1,m2,k*dt]])
+        posicaoRelativa=trajetoriaGerada[i,4:6]-trajetoriaGerada[i,0:2]
+        velocidadeRelativa=trajetoriaGerada[i,6:8]-trajetoriaGerada[i,2:4]
+
+        estadoT=np.concatenate([posicaoRelativa,velocidadeRelativa,[m1,m2,k*dt]])
         #estadoTmaist=trajetoria[i+k,:8] #prevendo o proximo estado
         delta=trajetoriaGerada[i+k,:8]-trajetoriaGerada[i,:8] #prevendo o incremento
 
@@ -327,8 +329,10 @@ X_normal=(X-X_media)/X_std
 Y_normal=(Y-Y_media)/Y_std
 
 #convertendo para tensores - preparando o dataset
-X_tensor=tc.tensor(X_normal,dtype=tc.float32)
-Y_tensor=tc.tensor(Y_normal,dtype=tc.float32)
+#X_tensor=tc.tensor(X_normal,dtype=tc.float32)
+#Y_tensor=tc.tensor(Y_normal,dtype=tc.float32)
+X_tensor=tc.from_numpy(np.array(X_normal)).float() 
+Y_tensor=tc.from_numpy(np.array(Y_normal)).float()
 
 dataSet=TensorDataset(X_tensor,Y_tensor)
 
@@ -356,7 +360,9 @@ class RedeGravitacional(nn.Module):
             nn.Linear(64,2)
         )'''
         self.net=nn.Sequential(
-            nn.Linear(11,64),
+            nn.Linear(7,64),
+            nn.Tanh(),
+            nn.Linear(64,64),
             nn.Tanh(),
             nn.Linear(64,64),
             nn.Tanh(),
@@ -393,28 +399,30 @@ optimizer=tc.optim.Adam(modelo.parameters(),lr=1e-3)
 
 
 #trainLoader=DataLoader(dataSet,batch_size=128,shuffle=True)
-trainLoader=DataLoader(dataSet,batch_size=64,shuffle=True)
+#trainLoader=DataLoader(dataSet,batch_size=64,shuffle=True)
+trainLoader=DataLoader(dataSet,batch_size=4096,shuffle=True)#isso permite um proce ssamento paralelo masi eficiente do que com batch=64
+
 print('..') 
 
 historico_loss=[]
 #rodando o loop de treino
 #for i in range(num_simul):
-for i in range(3):
-    for epoca in range(5):
-        print('\n-----------------------------------------------')
-        print(f'Comecando epoca {epoca+1}')
-        loss_epoca=0.0
-        for inputs,alvos in trainLoader:
-            predicao=modelo(inputs)
-            loss=loss_padrao(predicao,alvos)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            loss_epoca+=loss.item()
-            
-        loss_medio=loss_epoca/len(trainLoader)
-        historico_loss.append(loss_medio)
-        print(f'Epoca {epoca+1}: {loss_medio}')
+
+for epoca in range(30):
+    print('\n-----------------------------------------------')
+    print(f'Comecando epoca {epoca+1}')
+    loss_epoca=0.0
+    for inputs,alvos in trainLoader:
+        predicao=modelo(inputs)
+        loss=loss_padrao(predicao,alvos)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        loss_epoca+=loss.item()
+        
+    loss_medio=loss_epoca/len(trainLoader)
+    historico_loss.append(loss_medio)
+    print(f'Epoca {epoca+1}: {loss_medio}')
 
 m1_validacao=0.25 
 m2_validacao=0.75
@@ -422,7 +430,8 @@ estado_validacao=np.array([5.0,0.0,0.0,0.5,-5.0,0.0,0.0,-0.2])
 
 trajetoria_validacao = []
 temp_estado = estado_validacao.copy()
-for _ in range(steps):
+#for _ in range(steps):
+for _ in range(100000):
     trajetoria_validacao.append(np.append(temp_estado.copy(), 0)) # t=0 simplificado
     temp_estado = yoshida4ordem(temp_estado, dt, m1_validacao, m2_validacao)
 
@@ -460,9 +469,16 @@ traj_pred_2=[]
 
 #loop de teste da rede
 for n in range(horizonte):
-    entradaBruta=np.concatenate([estado_pred,[m1_validacao,m2_validacao,delta_t]])
+    dx=estado_pred[4]-estado_pred[0]
+    dy=estado_pred[5]-estado_pred[1]
+    dvx=estado_pred[6]-estado_pred[2]
+    dvy=estado_pred[7]-estado_pred[3]
+
+    entradaBruta=np.array([dx,dy,dvx,dvy,m1_validacao,m2_validacao,delta_t])
+    #entradaBruta=np.concatenate([estado_pred,[m1_validacao,m2_validacao,delta_t]])
     entradaNormal=(entradaBruta-X_media)/X_std
-    entradaTensor=tc.tensor([entradaNormal],dtype=tc.float32)
+    entradaTensor=tc.from_numpy(entradaNormal).float().unsqueeze(0)#método sugerido para tornar o processo de tornar para tensor mais rápido
+    #entradaTensor=tc.tensor([entradaNormal],dtype=tc.float32)# esse método é muito lerdo
 
     estado_real = trajetoria_validacao[passo_inicial+n*k_teste,:8]
 
@@ -476,15 +492,9 @@ for n in range(horizonte):
 
 
     # -----trajetória gerada pela rede-----
-    entrada=np.concatenate([
-        estado_pred,
-        [m1_validacao,m2_validacao,delta_t]
-    ])
+    #entrada=np.concatenate([estado_pred,[m1_validacao,m2_validacao,delta_t]])
 
-    entrada=tc.tensor(
-        [entrada],
-        dtype=tc.float32
-    )
+    #entrada=tc.tensor([entrada],dtype=tc.float32)
 
     with tc.no_grad():
         delta_normal = modelo(entradaTensor).numpy()[0]
