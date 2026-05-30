@@ -25,10 +25,12 @@ def extrair_horizons(arquivoEntrada):
     dados={
         'X':[],
         'Y':[],
+        'Z':[],
         'VX':[],
-        'VY':[]
+        'VY':[],
+        'VZ':[]
     }    #dicionario
-    permitidos=['X','Y','VX','VY']
+    permitidos=['X','Y','Z','VX','VY','VZ']
     with open(arquivoEntrada,"r",encoding="utf-8") as arquivo: #o with open fecha o arquivo logo após ser usado
         conteudo=arquivo.read().split()
         #print(conteudo)
@@ -74,16 +76,18 @@ def extrair_horizons(arquivoEntrada):
 def salvarDadosHorizonsNPZ(dados,nome):
     X=np.array(dados["X"])
     Y=np.array(dados["Y"])
+    Z=np.array(dados["Z"])
     VX=np.array(dados["VX"])
     VY=np.array(dados["VY"])
+    VZ=np.array(dados["VZ"])
    
-    np.savez_compressed(f"simulacoesArtificiais/horizons{nome}.npz",X=X,Y=Y,VX=VX,VY=VY)
-    print(f"Arquivo horizons{nome} salvo. Tamanho aproximado: {(X.nbytes+Y.nbytes+VX.nbytes+VY.nbytes)/1024:.2f} KB")
+    np.savez_compressed(f"simulacoesArtificiais/horizons{nome}.npz",X=X,Y=Y,Z=Z,VX=VX,VY=VY,VZ=VZ)
+    print(f"Arquivo horizons{nome} salvo. Tamanho aproximado: {(X.nbytes+Y.nbytes+Z.nbytes+VX.nbytes+VY.nbytes+VZ.nbytes)/1024:.2f} KB")
 
 #função para carregar os dados depois
 def carregarDadosHorizonsNPZ(nome):
     dados=np.load(f"simulacoesArtificiais/horizons{nome}.npz")
-    return (dados["X"],dados["Y"],dados["VX"],dados["VY"])
+    return (dados["X"],dados["Y"],dados["Z"],dados["VX"],dados["VY"],dados["VZ"])
 
 def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,nome):
     #convertendo para array caso ainda não seja
@@ -456,8 +460,8 @@ elif flagTipoDeSimulacao==1:
     m1simulacao=mTerra
     m2simulacao=mLua
 
-    xt,yt,vxt,vyt=carregarDadosHorizonsNPZ("TERRA")
-    xl,yl,vxl,vyl=carregarDadosHorizonsNPZ("LUA") 
+    xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("TERRA")
+    xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("LUA") 
 elif flagTipoDeSimulacao==2:
     steps = 721
     G=6.6743e-11
@@ -470,8 +474,8 @@ elif flagTipoDeSimulacao==2:
     m1simulacao=mPlutao
     m2simulacao=mCaronte
 
-    xt,yt,vxt,vyt=carregarDadosHorizonsNPZ("PLUTAO")
-    xl,yl,vxl,vyl=carregarDadosHorizonsNPZ("CARONTE")    
+    xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("PLUTAO")
+    xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("CARONTE")    
 elif flagTipoDeSimulacao==3:
 
     N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
@@ -485,8 +489,8 @@ elif flagTipoDeSimulacao==3:
     m1simulacao=mMarte
     m2simulacao=mFobos
 
-    xt,yt,vxt,vyt=carregarDadosHorizonsNPZ("MARTE")
-    xl,yl,vxl,vyl=carregarDadosHorizonsNPZ("FOBOS")
+    xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("MARTE")
+    xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("FOBOS")
 elif flagTipoDeSimulacao==4:
 
     N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
@@ -499,9 +503,9 @@ elif flagTipoDeSimulacao==4:
     m1simulacao=mJupiter
     m2simulacao=mIo
 
-    xt,yt,vxt,vyt=carregarDadosHorizonsNPZ("JUPITER")
-    xl,yl,vxl,vyl=carregarDadosHorizonsNPZ("IO")
-
+    xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("JUPITER")
+    xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("IO")
+'''
 R_cm0=(m1simulacao*np.array([x1,y1])+m2simulacao*np.array([x2,y2]))/(m1simulacao+m2simulacao)
 V_cm0=(m1simulacao*np.array([vx1,vy1])+m2simulacao*np.array([vx2,vy2]))/(m1simulacao+m2simulacao)
 
@@ -511,10 +515,67 @@ estado=np.array([
 ])
 
 xt,yt,vxt,vyt=xt*1e3,yt*1e3,vxt*1e3,vyt*1e3
-xl,yl,vxl,vyl=xl*1e3,yl*1e3,vxl*1e3,vyl*1e3
+xl,yl,vxl,vyl=xl*1e3,yl*1e3,vxl*1e3,vyl*1e3'''
+
+
+xt,yt,zt,vxt,vyt,vzt=xt*1e3,yt*1e3,zt*1e3,vxt*1e3,vyt*1e3,vzt*1e3
+xl,yl,zl,vxl,vyl,vzl=xl*1e3,yl*1e3,zl*1e3,vxl*1e3,vyl*1e3,vzl*1e3
 
 #aplicando a rotação de Rodrigues para que o plano orbital esteja no plano XY gerado pela simulação
-#rRelRot=xt[0]-xl[0],yt[0]-yl[0],zt[0]-zl[0]
+rRelRot=xt[0]-xl[0],yt[0]-yl[0],zt[0]-zl[0]
+vRelRot=vxt[0]-vxl[0],vyt[0]-vyl[0],vzt[0]-vzl[0]
+
+L=np.cross(rRelRot,vRelRot)
+
+zUnitario=np.array([0,0,1])
+LUnitario=L/np.linalg.norm(L)
+
+eixo=np.cross(LUnitario,zUnitario)
+eixo=eixo/np.linalg.norm(eixo)
+
+angulo=np.arccos(np.dot(LUnitario,zUnitario))
+
+'''xt=rotacionaVetor(xt,eixo,angulo)
+yt=rotacionaVetor(yt,eixo,angulo)
+vxt=rotacionaVetor(vxt,eixo,angulo)
+vyt=rotacionaVetor(vyt,eixo,angulo)
+
+xl=rotacionaVetor(xl,eixo,angulo)
+yl=rotacionaVetor(yl,eixo,angulo)
+vxl=rotacionaVetor(vxl,eixo,angulo)
+vyl=rotacionaVetor(vyl,eixo,angulo)'''
+
+#rotacionando com método de Rodrigues
+for i in range(len(xt)):
+    rT=np.array([xt[i],yt[i],zt[i]])
+    rL=np.array([xl[i],yl[i],zl[i]])
+    vT=np.array([vxt[i],vyt[i],vzt[i]])
+    vL=np.array([vxl[i],vyl[i],vzl[i]])
+    
+    rT_rot=rotacionaVetor(rT,eixo,angulo)
+    rL_rot=rotacionaVetor(rL,eixo,angulo)
+    vT_rot=rotacionaVetor(vT,eixo,angulo)
+    vL_rot=rotacionaVetor(vL,eixo,angulo)
+    
+    xt[i],yt[i]=rT_rot[0],rT_rot[1]
+    xl[i],yl[i]=rL_rot[0],rL_rot[1]
+    vxt[i],vyt[i]=vT_rot[0],vT_rot[1]
+    vxl[i],vyl[i]=vL_rot[0],vL_rot[1]
+
+
+x1,y1,vx1,vy1=xt[0],yt[0],vxt[0],vyt[0]
+x2,y2,vx2,vy2=xl[0],yl[0],vxl[0],vyl[0]#isso substituiria a declaração dos valores de X e Y em estadoTerraLua... burrice minha, simplesmente
+
+R_cm0=(m1simulacao*np.array([x1,y1])+m2simulacao*np.array([x2,y2]))/(m1simulacao+m2simulacao)
+V_cm0=(m1simulacao*np.array([vx1,vy1])+m2simulacao*np.array([vx2,vy2]))/(m1simulacao+m2simulacao)
+
+estado=np.array([
+    x1-R_cm0[0],y1-R_cm0[1],vx1-V_cm0[0],vy1-V_cm0[1],
+    x2-R_cm0[0],y2-R_cm0[1],vx2-V_cm0[0],vy2-V_cm0[1]
+])
+
+
+
 
 passoAtual=0
 flag_colisao=0
