@@ -210,6 +210,46 @@ def rotacionaVetor(v,eixo,angulo):
     pt3=eixo*np.dot(eixo,v)*(1-np.cos(angulo))
     return pt1+pt2+pt3
 
+def calculaMomLin(m1,m2,v1,v2):
+    return np.linalg.norm(m1*v1 + m2*v2)
+
+def calculaMomAng(m1,m2,r1,r2,v1,v2):
+    return m1*(r1[0]*v1[1] - r1[1]*v1[0]) + m2*(r2[0]*v2[1] - r2[1]*v2[0])
+
+def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcularMomLin,integrador):
+    massas=np.array(massas)
+
+
+    #======calculo das invariantes do sistema======
+    energias,momLin,momAng=[],[],[]
+    for estado in trajetoria[:, :-1]: #aqui o [:, :-1] significa que vai pegar todas as linhas individualmente mas MENOS UMA coluna, que é a final (onde há o tempo, inútil nestes cálculos daqui)
+        r1=estado[0:2]
+        v1=estado[2:4]
+        r2=estado[4:6]
+        v2=estado[6:8]
+        energias.append(calcularEnergia(estado,massas[0],massas[1]))
+        momLin.append(calcularMomLin(massas[0],massas[1],v1,v2))
+        momAng.append(calcularMomAng(massas[0],massas[1],r1,r2,v1,v2))
+    
+    energias=np.array(energias)
+    momLin=np.array(momLin)
+    momAng=np.array(momAng)
+
+    desvioEnerg=(energias.max()-energias.min())/abs(energias.mean())
+    desvioAng=np.max(np.linalg.norm(momAng-momAng[0],axis=-1))/np.linalg.norm(momAng[0]) #lembrando que np.linalg.norm retorna a magnitude, e nesse caso é a magnitude da diferença entre momAng inicial e o atual
+    desvioLin=np.max(np.linalg.norm(momLin,axis=-1)) #precisa ser zero aqui
+
+    #======reversibilidade======
+    estado=trajetoria[0, :-1].copy() #copia a primeira linha sem o tempo
+    steps=len(trajetoria)
+    for _ in range(steps):
+        estado=integrador(estado,dt,massas[0],massas[1])
+    for _ in range(steps):
+        estado=integrador(estado,-dt,massas[0],massas[1])
+    erroReversao=np.linalg.norm(estado-trajetoria[0, :-1])/np.linalg.norm(trajetoria[0, :-1])
+
+    return [desvioEnerg,desvioLin,desvioAng,erroReversao]
+
 
 #============================== VARIÁVEIS DA SIMULAÇÃO =================================
 #salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsLua.txt'),"LUA")
@@ -274,6 +314,7 @@ diferencaEnergiaHorizonsXSimulacao=[]
 diferencaMomLinHorizonsXSimulacao=[]
 diferencaMomAngHorizonsXSimulacao=[]
 erro_posicao=[]
+erro_relativo_posicao=[]
 
 epsilon=1e-12 #para ser uma simulação fisicamente acurada/real essa variável tem que ser praticamente ZERO
 steps=200000
@@ -381,8 +422,8 @@ if flagTipoDeSimulacao==0:
             #evolução do sistema
             estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
 
-            momLin.append(np.linalg.norm(m1simulacao*v1 + m2simulacao*v2))
-            momAng.append(m1simulacao*(r1[0]*v1[1] - r1[1]*v1[0]) + m2simulacao*(r2[0]*v2[1] - r2[1]*v2[0]))
+            momLin.append(calculaMomLin(m1simulacao,m2simulacao,v1,v2))
+            momAng.append(calculaMomAng(m1simulacao,m2simulacao,r1,r2,v1,v2))
             
             rMomentaneo.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2))
 
@@ -405,6 +446,11 @@ if flagTipoDeSimulacao==0:
             trajetoria=np.array(trajetoria)#aqui o trajetoria deixa de ser uma lista de arrays para ser uma matriz 2D, melhor para fazer cálculos
             energiaDoSistema=np.array(energiaDoSistema)
             #print(trajetoria.shape)
+
+            #==============VALIDANDO O SIMULADOR#==============
+            resultados=validarSimulador(trajetoria,massas,dt,calculaEnergiaDoSistema,calculaMomAng,calculaMomLin,yoshida4ordem)
+            #resultados = [desvioEnerg,desvioLin,desvioAng,erroReversao]
+            print(f"VALORES DA VALIDAÇÃO:\nDesvio da energia: {resultados[0]}\nDesvio do momento linear: {resultados[1]}\nDesvio do momento angualr: {resultados[2]}\nErro daa reversão: {resultados[3]}")
 
 
             #plotando a imagem da trajetória
@@ -626,8 +672,8 @@ else:
         v2 = estado[6:8]
         r_dinamicoSistema.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2))
 
-        momLinSistema.append(np.linalg.norm(m1simulacao*v1 + m2simulacao*v2))
-        momAngSistema.append(m1simulacao*(r1[0]*v1[1] - r1[1]*v1[0]) + m2simulacao*(r2[0]*v2[1] - r2[1]*v2[0]))
+        momLinSistema.append(calculaMomLin(m1simulacao,m2simulacao,v1,v2))
+        momAngSistema.append(calculaMomAng(m1simulacao,m2simulacao,r1,r2,v1,v2))
 
         #dados do horizons
         x1h,y1h,vx1h,vy1h,x2h,y2h,vx2h,vy2h=estadoHorizons
@@ -638,8 +684,8 @@ else:
         v1h=np.array([vx1h,vy1h])
         v2h=np.array([vx2h,vy2h])
 
-        momLinHorizons.append(np.linalg.norm(m1simulacao*v1h + m2simulacao*v2h))
-        momAngHorizons.append(m1simulacao*(r1h[0]*v1h[1] - r1h[1]*v1h[0]) + m2simulacao*(r2h[0]*v2h[1] - r2h[1]*v2h[0]))
+        momLinHorizons.append(calculaMomLin(m1simulacao,m2simulacao,v1h,v2h))
+        momAngHorizons.append(calculaMomAng(m1simulacao,m2simulacao,r1h,r2h,v1h,v2h))
 
         #append das diferenças
         diferencaMomLinHorizonsXSimulacao.append(momLinHorizons[i]-momLinSistema[i])
