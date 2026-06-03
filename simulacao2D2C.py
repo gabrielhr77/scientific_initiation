@@ -1,8 +1,7 @@
 import numpy as np, matplotlib.pyplot as plt
-import pandas as pd
 
 
-def estadoAtual(estado,m1,m2):
+'''def estadoAtual(estado,m1,m2):
     x1,y1,vx1,vy1,\
     x2,y2,vx2,vy2,t=estado #pareando as variáveis com seus respectivos valores, onde x1=estado[0]
     #vetores posição
@@ -19,7 +18,7 @@ def estadoAtual(estado,m1,m2):
     #retornando as derivadas masi o dt/dt=1
     return np.array([vx1,vy1,a1[0],a1[1],
                      vx2,vy2,a2[0],a2[1],
-                     1])
+                     1])'''
 
 def extrair_horizons(arquivoEntrada):
     dados={
@@ -163,7 +162,6 @@ def yoshida4ordem(estado,dt,m1,m2):#utiliza algumas vezes o velocity-verlet
     return np.concatenate([r1,v1,r2,v2])
 
 
-#VERSÃO QUE NÃO CHAMA O NP.LINALOG.NORM, SÓ CONTENDO POUCOS SQRT E MULTIPLICAÇÕES, SEM DIVISÕES (que são mais lentas que as multiplicações)
 def atualizaAceleracoes_posicoes(r1,r2,m1,m2):
     #vetor posição
     pr12=r2-r1
@@ -172,7 +170,6 @@ def atualizaAceleracoes_posicoes(r1,r2,m1,m2):
     rr12=pr12[0]**2 + pr12[1]**2 + epsilon**2
 
     #fazendo o inverso para poupar algumas divisões
-
     inv_r12=1/(rr12*np.sqrt(rr12))
 
     a1=G*(m2*pr12*inv_r12)
@@ -218,7 +215,7 @@ def calculaMomAng(m1,m2,r1,r2,v1,v2):
 
 def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcularMomLin,integrador):
     massas=np.array(massas)
-
+    trajetoria=np.array(trajetoria)
 
     #======calculo das invariantes do sistema======
     energias,momLin,momAng=[],[],[]
@@ -236,17 +233,24 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
     momAng=np.array(momAng)
 
     desvioEnerg=(energias.max()-energias.min())/abs(energias.mean())
-    desvioAng=np.max(np.linalg.norm(momAng-momAng[0],axis=-1))/np.linalg.norm(momAng[0]) #lembrando que np.linalg.norm retorna a magnitude, e nesse caso é a magnitude da diferença entre momAng inicial e o atual
-    desvioLin=np.max(np.linalg.norm(momLin,axis=-1)) #precisa ser zero aqui
+    #aqui precisei colocar baseando-se na dimensão dos vetores dos momentos para evitar runtime error na simulação 2D, e como é uma função genérica para os 4 simuladores foi necessário manter como condição mesmo
+    escala=np.abs(massas[0]*np.linalg.norm(trajetoria[0, 2:4])) #este é o módulo do momento linear do primeiro corpo no primeiro instante, serve como uma média
+    if momAng.ndim==1 and momLin.ndim==1:
+        desvioAng=np.max(np.abs(momAng-momAng[0]))/np.abs(momAng[0]) #/np.abs(momAng[0]) é a normalização pelo vetor inicial - torna o resultado relativo
+        desvioLin=np.max(np.abs(momLin))/escala#np.abs(momLin[0])
+    else:
+        desvioAng=np.max(np.linalg.norm(momAng-momAng[0],axis=-1))/np.linalg.norm(momAng[0]) #lembrando que np.linalg.norm retorna a magnitude, e nesse caso é a magnitude da diferença entre momAng inicial e o atual
+        desvioLin=np.max(np.linalg.norm(momLin,axis=-1))/np.linalg.norm(momLin[0])
+   
 
     #======reversibilidade======
     estado=trajetoria[0, :-1].copy() #copia a primeira linha sem o tempo
-    steps=len(trajetoria)
+    steps=50000#len(trajetoria)
     for _ in range(steps):
         estado=integrador(estado,dt,massas[0],massas[1])
     for _ in range(steps):
         estado=integrador(estado,-dt,massas[0],massas[1])
-    erroReversao=np.linalg.norm(estado-trajetoria[0, :-1])/np.linalg.norm(trajetoria[0, :-1])
+    erroReversao=np.linalg.norm(estado-trajetoria[0, :-1])/np.linalg.norm(trajetoria[0, :-1]) #normaliza para tornar o resultado da diferença entre os estados inicial original e após ir e voltar ser relativo
 
     return [desvioEnerg,desvioLin,desvioAng,erroReversao]
 
@@ -263,7 +267,7 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
 #salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsIo.txt'),"IO")
 
 
-estadoTerraLua=np.array([ #tudo está no SI
+'''estadoTerraLua=np.array([ #tudo está no SI
     -1.049889067625132e11, -1.095550719362653e11, 2.098005027956806e4, -2.076878134531754e4,
     -1.048920118008394e11, -1.099460696073275e11, 2.191567044477730e4, -2.051617942441162e4
 ])
@@ -281,7 +285,7 @@ estadoMarteFobos=np.array([
 estadoJupiterIo=np.array([
     -3.851347581041645e11, 6.850342840540687e11, -1.154481492425305e4, -5.785542092116165e3,
     -3.848651961987973e11, 6.853579292446296e11, -2.492401912146892e4, 5.256511031361246e3
-])
+])'''
 
 mTerra=5.97219e24
 mLua=7.349e22
@@ -450,7 +454,7 @@ if flagTipoDeSimulacao==0:
             #==============VALIDANDO O SIMULADOR#==============
             resultados=validarSimulador(trajetoria,massas,dt,calculaEnergiaDoSistema,calculaMomAng,calculaMomLin,yoshida4ordem)
             #resultados = [desvioEnerg,desvioLin,desvioAng,erroReversao]
-            print(f"VALORES DA VALIDAÇÃO:\nDesvio da energia: {resultados[0]}\nDesvio do momento linear: {resultados[1]}\nDesvio do momento angualr: {resultados[2]}\nErro daa reversão: {resultados[3]}")
+            print(f"VALORES DA VALIDAÇÃO:\nDesvio da energia: {resultados[0]}\nDesvio do momento linear: {resultados[1]}\nDesvio do momento angualr: {resultados[2]}\nErro daa reversão: {resultados[3]:.2e}")
 
 
             #plotando a imagem da trajetória
@@ -523,35 +527,43 @@ if flagTipoDeSimulacao==0:
             plt.show()
 else: 
     if flagTipoDeSimulacao==1:
+        '''x1,y1,vx1,vy1,\
+        x2,y2,vx2,vy2=estadoTerraLua'''
+
         N=120 #numero de subpassos
         dt=3600/N
 
         steps = 721
         G=6.6743e-11
 
-        x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoTerraLua
+        
 
 
         m1simulacao=mTerra
         m2simulacao=mLua
-
+        
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("TERRA")
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("LUA") 
+
+        estadoTerraLua=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]]
+    
     elif flagTipoDeSimulacao==2:
         steps = 721
         G=6.6743e-11
         N=12
         dt=3600/N
 
-        x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoPluaoCaronte
+        '''x1,y1,vx1,vy1,\
+        x2,y2,vx2,vy2=estadoPluaoCaronte'''
 
         m1simulacao=mPlutao
         m2simulacao=mCaronte
 
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("PLUTAO")
-        xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("CARONTE")    
+        xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("CARONTE")   
+
+        estadoPluaoCaronte=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]] 
+
     elif flagTipoDeSimulacao==3:
 
         N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
@@ -559,14 +571,17 @@ else:
         steps = 721
         G=6.6743e-11
 
-        x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoMarteFobos
+        '''x1,y1,vx1,vy1,\
+        x2,y2,vx2,vy2=estadoMarteFobos'''
 
         m1simulacao=mMarte
         m2simulacao=mFobos
 
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("MARTE")
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("FOBOS")
+
+        estadoMarteFobos=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]] 
+    
     elif flagTipoDeSimulacao==4:
 
         N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
@@ -574,13 +589,15 @@ else:
         steps = 721
         G=6.6743e-11
 
-        x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoJupiterIo
+        '''x1,y1,vx1,vy1,\
+        x2,y2,vx2,vy2=estadoJupiterIo'''
         m1simulacao=mJupiter
         m2simulacao=mIo
 
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("JUPITER")
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("IO")
+
+        estadoJupiterIo=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]] 
 
 
     xt,yt,zt,vxt,vyt,vzt=xt*1e3,yt*1e3,zt*1e3,vxt*1e3,vyt*1e3,vzt*1e3
@@ -714,9 +731,20 @@ else:
         #progresso da simulação em porcentagem 
         if passoAtual % 10000 == 0 and passoAtual > 0:
             print(f"Passo {passoAtual}/{steps} ({100*passoAtual/steps:.1f}%)")
+    
+
+    #==============VALIDANDO O SIMULADOR#==============
+    massas=[m1simulacao,m2simulacao]
+    resultados=validarSimulador(trajetoria,massas,dt,calculaEnergiaDoSistema,calculaMomAng,calculaMomLin,yoshida4ordem)
+    #resultados = [desvioEnerg,desvioLin,desvioAng,erroReversao]
+    print(f"VALORES DA VALIDAÇÃO:\nDesvio da energia: {resultados[0]}\nDesvio do momento linear: {resultados[1]}\nDesvio do momento angular: {resultados[2]}\nErro da reversão: {resultados[3]:.2e}")
+
+    
     #==========================================GERAÇÃO DE PLOTS EM UMA MESMA IMAGEM==========================================
     trajetoria=np.array(trajetoria)#aqui o trajetoria deixa de ser uma lista de arrays para ser uma matriz 2D, melhor para fazer cálculos
+    
 
+    
     #plotando a imagem da trajetória
     x1=trajetoria[:,0]
     y1=trajetoria[:,1]
@@ -761,10 +789,10 @@ else:
     # ---------------- Energia dos dados HORIZONS----------------
     r_sim_km = np.array(r_dinamicoSistema) / 1e3
     r_hor_km = np.array(r_dinamicoHorizons) / 1e3
-    r_hor_3d = np.sqrt((xl-xt)**2 + (yl-yt)**2 + (zl-zt)**2) / 1e3
+    '''r_hor_3d = np.sqrt((xl-xt)**2 + (yl-yt)**2 + (zl-zt)**2) / 1e3
 
     print("\nr_hor_3d: ",r_hor_3d)
-    print("\nr_hor_km: ",r_hor_km)
+    print("\nr_hor_km: ",r_hor_km)'''
 
     axs[2,1].plot(r_sim_km, label='Simulador', lw=1)
     axs[2,1].plot(r_hor_km, label='HORIZONS (2D)', lw=1, alpha=0.7)
