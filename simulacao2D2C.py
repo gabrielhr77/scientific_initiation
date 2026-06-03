@@ -89,7 +89,7 @@ def carregarDadosHorizonsNPZ(nome):
     dados=np.load(f"simulacoesArtificiais/horizons{nome}.npz")
     return (dados["X"],dados["Y"],dados["Z"],dados["VX"],dados["VY"],dados["VZ"])
 
-def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,nome):
+def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,aceleracoes,nome):
     #convertendo para array caso ainda não seja
     massas=np.array(massas)
     trajetoria=np.array(trajetoria)
@@ -98,10 +98,11 @@ def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,nome):
     momAng=np.array(momAng)
     momLin=np.array(momLin)
     r_min=np.array(r_min)
+    aceleracoes=np.array(aceleracoes)
 
     #para facilitar no treinamento da rede, salvo todos os arrays em um arquivo compactado
     np.savez_compressed(f"simulacoesArtificiais/simulacao2C{nome}.npz",
-                        massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,r_min=r_min)
+                        massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,r_min=r_min,aceleracoes=aceleracoes)
     print(f"Arquivo salvo. Tamanho aproximado: {trajetoria.nbytes/1e6:.1f} MB")
 
 
@@ -269,7 +270,6 @@ momAngSistema=[]
 momLinHorizons=[]
 momAngHorizons=[]
 
-
 diferencaEnergiaHorizonsXSimulacao=[]
 diferencaMomLinHorizonsXSimulacao=[]
 diferencaMomAngHorizonsXSimulacao=[]
@@ -292,7 +292,7 @@ j=0
 #flag = 2  -->  simulador HORIZONS PLUTÃO-CARONTE - obliquidade 122.5º e 119º - (a componente Z da velocidade aqui é tão grande que impossibilita uma órbita 2D sem a considerar nos cálculos -sem a componente Z ~135 m/s, com Z ~223 m/s- os dados da HORIZONS deveriam ser rotacionados para encontrar a componente Z zerada e permitir uma simulação 2D - projeção da real órbita Caronte-Plutão)
 #flag = 3  -->  simulador HORIZONS MARTE-PHOBOS - obliquidade 25.9º e 26º - (inclinação de Fobos é de ~25º em relação à eclíptica, então o gráfico da distância relativa é sem levar em consideração a amplitude de movimento do eixo Z)
 #flag = 4  -->  simulador HORIZONS JÚPITER-IO - obliquidade 3.13º e 3.17º 
-flagTipoDeSimulacao=4
+flagTipoDeSimulacao=0
 
 if flagTipoDeSimulacao==0:
     dt=0.00025
@@ -303,7 +303,7 @@ if flagTipoDeSimulacao==0:
         rMomentaneo=[]
         momLin=[]
         momAng=[]
-
+        aceleracoes=[]
 
         x1,y1,vx1,vy1,\
         x2,y2,vx2,vy2=estado0
@@ -363,9 +363,10 @@ if flagTipoDeSimulacao==0:
             tempoSimulacao.append(tAtual)
 
             energiaDoSistema.append(calculaEnergiaDoSistema(estado,m1simulacao,m2simulacao))
-            
+            '''a1,a2=atualizaAceleracoes_posicoes(r1,r2,m1simulacao,m2simulacao)
+            aceleracoes.append(np.concatenate([a1,a2]))
             #evolução do sistema
-            estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
+            estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)'''
 
             #PARA EVITAR COLISÕES, QUE NÃO É O OBJETIVO DA REDE COMPREENDER, COLOCO ESSE GATILHO PARA EVITAR COLOCAR OS DADOS DA TRAJETÓRIA NO DATASET
             r12=np.sqrt((np.linalg.norm(np.array([estado[4],estado[5]])-np.array([estado[0],estado[1]])))**2 + epsilon**2)
@@ -374,6 +375,11 @@ if flagTipoDeSimulacao==0:
             v1 = estado[2:4]
             r2 = estado[4:6]
             v2 = estado[6:8]
+
+            a1,a2=atualizaAceleracoes_posicoes(r1,r2,m1simulacao,m2simulacao)
+            aceleracoes.append(np.concatenate([a1,a2]))
+            #evolução do sistema
+            estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
 
             momLin.append(np.linalg.norm(m1simulacao*v1 + m2simulacao*v2))
             momAng.append(m1simulacao*(r1[0]*v1[1] - r1[1]*v1[0]) + m2simulacao*(r2[0]*v2[1] - r2[1]*v2[0]))
@@ -392,7 +398,7 @@ if flagTipoDeSimulacao==0:
         #salva os dados da simulação se não houve colisão
         if(flag_colisao==0):  
             massas=[m1simulacao,m2simulacao]
-            salvarEstadosNPZ(massas,trajetoria,tempoSimulacao,energiaDoSistema,momAng,momLin,rMomentaneo,j)
+            salvarEstadosNPZ(massas,trajetoria,tempoSimulacao,energiaDoSistema,momAng,momLin,rMomentaneo,aceleracoes,j)
             j+=1
 
 
@@ -461,6 +467,7 @@ if flagTipoDeSimulacao==0:
 
             # ---------------- Erro relativo ----------------
             E0 = energiaDoSistema[0]
+            print("Órbita ligada" if E0<0 else "Hiperbólica - não ligado")
             erro_relativo = (energiaDoSistema - E0)/abs(E0)
             axs[2,1].plot(erro_relativo)
             axs[2,1].set_title("Erro Relativo da Energia")
@@ -546,8 +553,7 @@ else:
     eixo=eixo/np.linalg.norm(eixo)
 
     angulo=np.arccos(np.dot(LUnitario,zUnitario))
-
-
+    
 
     #rotacionando com método de Rodrigues
     for i in range(len(xt)):
@@ -588,14 +594,14 @@ else:
     for i in range(steps):
         passoAtual+=1
 
-        for _ in range(N):
+        '''for _ in range(N):
             estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
         match flagTipoDeSimulacao:
             case 1: tAtual+=3600
             case 2: tAtual+=3600
             case 3: tAtual+=600
             case 4: tAtual+=3600
-            case _: tAtual+=1
+            case _: tAtual+=1'''
 
         estadoComTempo=np.append(estado.copy(),tAtual)
         trajetoria.append(estadoComTempo)
@@ -650,6 +656,14 @@ else:
 
         #evolução do sistema
         #estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
+        for _ in range(N):
+            estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
+        match flagTipoDeSimulacao:
+            case 1: tAtual+=3600
+            case 2: tAtual+=3600
+            case 3: tAtual+=600
+            case 4: tAtual+=3600
+            case _: tAtual+=1
 
         #progresso da simulação em porcentagem 
         if passoAtual % 10000 == 0 and passoAtual > 0:
@@ -701,6 +715,10 @@ else:
     # ---------------- Energia dos dados HORIZONS----------------
     r_sim_km = np.array(r_dinamicoSistema) / 1e3
     r_hor_km = np.array(r_dinamicoHorizons) / 1e3
+    r_hor_3d = np.sqrt((xl-xt)**2 + (yl-yt)**2 + (zl-zt)**2) / 1e3
+
+    print("\nr_hor_3d: ",r_hor_3d)
+    print("\nr_hor_km: ",r_hor_km)
 
     axs[2,1].plot(r_sim_km, label='Simulador', lw=1)
     axs[2,1].plot(r_hor_km, label='HORIZONS (2D)', lw=1, alpha=0.7)
