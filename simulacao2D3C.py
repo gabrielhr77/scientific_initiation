@@ -1,30 +1,6 @@
 import numpy as np, matplotlib.pyplot as plt
 
 
-'''def estadoAtual(estado,m1,m2,m3):
-    x1,y1,vx1,vy1,\
-    x2,y2,vx2,vy2,\
-    x3,y3,vx3,vy3,t=estado #pareando as variáveis com seus respectivos valores, onde x1=estado[0]
-    #vetores posição
-    r1=np.array([x1,y1])
-    r2=np.array([x2,y2])
-    r3=np.array([x3,y3])
-    #distâncias
-    r12=np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)#traz a norma da matriz/vetor (distância entre os dois pontos/vetores posição) e o sqrt com a soma do 1e-6 garante que a distância não será 0 para evitar erro em divisão
-    r13=np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)
-    r23=np.sqrt((np.linalg.norm(r3-r2))**2 + epsilon**2)
-
-    #acelerações
-    a1=G*m2*(r2-r1)/r12**3 + G*m3*(r3-r1)/r13**3
-    a2=G*m1*(r1-r2)/r12**3 + G*m3*(r3-r2)/r23**3
-    a3=G*m1*(r1-r3)/r13**3 + G*m2*(r2-r3)/r23**3
-
-    #retornando as derivadas masi o dt/dt=1
-    return np.array([vx1,vy1,a1[0],a1[1],
-                     vx2,vy2,a2[0],a2[1],
-                     vx3,vy3,a3[0],a3[1],
-                     1])'''
-
 def extrair_horizons(arquivoEntrada):
     dados={
         'X':[],
@@ -109,89 +85,10 @@ def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,acelera
                         massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,r_min=r_min,aceleracoes=aceleracoes)
     print(f"Arquivo salvo. Tamanho aproximado: {trajetoria.nbytes/1e6:.1f} MB")
 
-
 #função para carregar os dados depois
 def carregarEstadosNPZ(nome):
     dados=np.load(f"simulacoesArtificiais/simulacao3C{nome}.npz")
     return dados['trajetoria']
-
-'''def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,nome):
-    #convertendo para array caso ainda não seja
-    massas=np.array(massas)
-    trajetoria=np.array(trajetoria)
-    tempo=np.array(tempo)
-    energia=np.array(energia)
-    momAng=np.array(momAng)
-    momLin=np.array(momLin)
-    r_min=np.array(r_min)
-
-    #para facilitar no treinamento da rede, salvo todos os arrays em um arquivo compactado
-    np.savez_compressed(f"simulacoesArtificiais/simulacao{nome}.npz",
-                        massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,r_min=r_min)
-    print(f"Arquivo salvo. Tamanho aproximado: {trajetoria.nbytes/1e6:.1f} MB")
-
-
-#função para carregar os dados depois
-def carregarEstadosNPZ(nome):
-    dados=np.load(f"simulacoesArtificiais/simulacao{nome}.npz")
-    return dados['trajetoria']
-'''
-
-'''def rk4(estado,dt,m1,m2,m3):#por mais que seja muito preciso LOCALMENTE, excelente para curto prazo, mas não é SIMPLÉTICO (não preserva a geometria do espaço de fases), não conserva a energia do sistema hamiltoniano, por isso aplico LEAPFROG abaixo
-    estado=estado.copy()  
-
-    k1=estadoAtual(estado,m1,m2,m3)
-    k2=estadoAtual(estado+0.5*dt*k1,m1,m2,m3)
-    k3=estadoAtual(estado+0.5*dt*k2,m1,m2,m3)
-    k4=estadoAtual(estado+dt*k3,m1,m2,m3)
-
-    return estado + (dt/6)*(k1 + 2*k2 + 2*k3 + k4)
-
-
-#o método do leapfrog vai encontrar o meio passo de velocidade, depois o passo inteiro de posição para então atualizar a aceleração com a nova posição (preciso de uma função apenas para atualizar a aceleração) e finalizar a velocidade
-def leapfrog(estado,dt,m1,m2,m3):#alterna posição em tempo inteiro e velocidade em meio passo de tempo
-    estado=estado.copy()
-       
-    #separando posições e velocidades
-    r1=estado[0:2]
-    v1=estado[2:4]
-    r2=estado[4:6]
-    v2=estado[6:8]
-    r3=estado[8:10]
-    v3=estado[10:12]
-
-    #aceleração inicial
-    a1,a2,a3=atualizaAceleracoes_estado(estado,m1,m2,m3)
-
-    #meio passo (velocidade)
-    v1_meio=v1+dt*a1/2
-    v2_meio=v2+dt*a2/2
-    v3_meio=v3+dt*a3/2
-
-    #passo completo da posição
-    r1_novo=r1+dt*v1_meio
-    r2_novo=r2+dt*v2_meio
-    r3_novo=r3+dt*v3_meio
-
-    estadoTemporario=np.array([#para poder calcular a nova aceleração
-        r1_novo[0],r1_novo[1],v1_meio[0],v1_meio[1],
-        r2_novo[0],r2_novo[1],v2_meio[0],v2_meio[1],
-        r3_novo[0],r3_novo[1],v3_meio[0],v3_meio[1]
-    ])
-
-    a1_nova,a2_nova,a3_nova=atualizaAceleracoes_estado(estadoTemporario,m1,m2,m3)
-
-    #finalizando a velocidade
-    v1_nova=v1_meio+dt*a1_nova/2
-    v2_nova=v2_meio+dt*a2_nova/2
-    v3_nova=v3_meio+dt*a3_nova/2
-
-    return np.array([
-        r1_novo[0], r1_novo[1], v1_nova[0], v1_nova[1],
-        r2_novo[0], r2_novo[1], v2_nova[0], v2_nova[1],
-        r3_novo[0], r3_novo[1], v3_nova[0], v3_nova[1]
-    ])'''
-
 
 def yoshida4ordem(estado,dt,m1,m2,m3):#utiliza algumas vezes o velocity-verlet
     w1=1/(2-2**(1/3))
@@ -253,8 +150,6 @@ def yoshida4ordem(estado,dt,m1,m2,m3):#utiliza algumas vezes o velocity-verlet
 
     return np.concatenate([r1,v1,r2,v2,r3,v3])
 
-
-#VERSÃO QUE NÃO CHAMA O NP.LINALOG.NORM, SÓ CONTENDO POUCOS SQRT E MULTIPLICAÇÕES, SEM DIVISÕES (que são mais lentas que as multiplicações)
 def atualizaAceleracoes_posicoes(r1,r2,r3,m1,m2,m3):
     #vetor posição
     pr12=r2-r1
@@ -276,7 +171,6 @@ def atualizaAceleracoes_posicoes(r1,r2,r3,m1,m2,m3):
 
     return a1,a2,a3
 
-
 def atualizaAceleracoes_estado(estado,m1,m2,m3):
     x1,y1,vx1,vy1,\
     x2,y2,vx2,vy2,\
@@ -295,7 +189,6 @@ def atualizaAceleracoes_estado(estado,m1,m2,m3):
     a3=G*m1*(r1-r3)/r13**3 + G*m2*(r2-r3)/r23**3
 
     return a1,a2,a3
-
 
 def calculaEnergiaDoSistema(estado,m1,m2,m3): #e momentos linear e angular
     x1,y1,vx1,vy1,\
@@ -328,11 +221,9 @@ def calculaEnergiaDoSistema(estado,m1,m2,m3): #e momentos linear e angular
 
     return cinetica+potencial
 
-
 #retorna um valor aleatório de um parâmetro (multiplica por algum valor entre 0 e 1), podendo ser negativo ou positivo
 def rd(a):
     return float(a)*(2*np.random.rand()-1)
-
 
 #a rotação de Rodrigues não funcionará 100% com os 3 corpos pois os planos prbitais não são coincidentes muitas vezes
 #SOLUÇÃO: aplicar mais de uma vez a rotação de Rodrigues --> aplico no eixo dominante (Sol-Terra) e depois aplico a mesma rotaç~onos vetores posição e velocidade da Lua, assim todos os corpos estarão no mesmo plano prbital --: CENÁRIO IDEALIZADO, APENAS PARA APRENDIZAGEM
@@ -394,15 +285,20 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
 
     return [desvioEnerg,desvioLin,desvioAng,erroReversao]
 
-
-
-
 #============================== VARIÁVEIS DA SIMULAÇÃO =================================
-"""estado0=np.array([
-    -10, -5, .11, 0.05,
-     10, -10, -.2, -0.06,
-     5, 10, -0.055, 0
-],dtype=float)"""
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsLua60d.txt'),"LUA60d")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsTerra60d.txt'),"TERRA60d")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsSol60d.txt'),"SOL60d")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsSol1a6h.txt'),"SOL1a6h")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsLua1a6h.txt'),"LUA1a6h")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsTerra1a6h.txt'),"TERRA1a6h")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsPlutao.txt'),"PLUTAO")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsCaronte.txt'),"CARONTE")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsMarte.txt'),"MARTE")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsFobos.txt'),"FOBOS")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsJupiter.txt'),"JUPITER")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsIo.txt'),"IO")
+#salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsEuropa.txt'),"EUROPA")
 
 estado0=np.array([
     -10, -5, .11, .5,
@@ -419,6 +315,7 @@ mMarte=6.4171e23
 mFobos=1.08e16
 mJupiter=18.9819e26
 mIo=8.93e22
+mEuropa=4.79984e22
 
 trajetoria=[]
 tempoSimulacao=[]
@@ -455,8 +352,8 @@ j=0
 #flag = 1  -->  simulador HORIZONS TERRA-LUA-SOL
 #flag = 2  -->  simulador HORIZONS 
 #flag = 3  -->  simulador HORIZONS 
-#flag = 4  -->  simulador HORIZONS 
-flagTipoDeSimulacao=1
+#flag = 4  -->  simulador HORIZONS JUPITER-IO-EUROPA
+flagTipoDeSimulacao=4
 
 if flagTipoDeSimulacao==0:
     dt=0.00025
@@ -670,32 +567,40 @@ if flagTipoDeSimulacao==0:
             plt.tight_layout()
             plt.show()
 else: 
+    G=6.6743e-11
+
     if flagTipoDeSimulacao==1:
-        '''x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoTerraLua'''
-
-        N=120 #numero de subpassos
-        dt=3600/N
-
-        steps = 721
-        G=6.6743e-11
-
+        '''N=120 #numero de subpassos
+        dt=3600/N'''
         
-
+        N = 720               # subpassos
+        dt = 6*3600 / N
+        #steps = 721     #30 dias 1h
+        #steps = 1440     #60 dias 1h
+        #steps = 1460    #365 dias 6h
+        
 
         m1simulacao=mTerra
         m2simulacao=mLua
         m3simulacao=mSol
-        xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("SOL")
+        xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("SOL1a6h")
+        xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("TERRA1a6h")
+        xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("LUA1a6h")
+
+        '''xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("SOL60d")
+        xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("TERRA60d")
+        xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("LUA60d")'''
+
+        '''xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("SOL")
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("TERRA")
-        xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("LUA")
-         
+        xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("LUA")'''
+
+        steps = len(xt)
 
         #estadoTerraLua=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]]
     
     elif flagTipoDeSimulacao==2:
         steps = 721
-        G=6.6743e-11
         N=12
         dt=3600/N
 
@@ -716,7 +621,7 @@ else:
         N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
         dt=600/N
         steps = 721
-        G=6.6743e-11
+       
 
         '''x1,y1,vx1,vy1,\
         x2,y2,vx2,vy2=estadoMarteFobos'''
@@ -735,14 +640,11 @@ else:
         N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
         dt=3600/N
         steps = 721
-        G=6.6743e-11
 
-        '''x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoJupiterIo'''
         m1simulacao=mJupiter
         m2simulacao=mIo
-        m3simulacao=mSol
-        xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("SOL")
+        m3simulacao=mEuropa
+        xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("EUROPA")
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("JUPITER")
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("IO")
 
@@ -895,7 +797,7 @@ else:
         for _ in range(N):
             estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao,m3simulacao)
         match flagTipoDeSimulacao:
-            case 1: tAtual+=3600
+            case 1: tAtual+=3600*6
             case 2: tAtual+=3600
             case 3: tAtual+=600
             case 4: tAtual+=3600
