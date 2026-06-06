@@ -3,7 +3,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from plotly import graph_objects as go
 
 
-
 def extrair_horizons(arquivoEntrada):
     dados={
         'X':[],
@@ -159,11 +158,10 @@ def atualizaAceleracoes_posicoes(r1,r2,r3,m1,m2,m3):
     pr13=r3-r1
     pr23=r3-r2
     #radicando
-    rr12=pr12[0]**2 + pr12[1]**2 + epsilon**2
-    rr13=pr13[0]**2 + pr13[1]**2 + epsilon**2
-    rr23=pr23[0]**2 + pr23[1]**2 + epsilon**2
+    rr12=pr12[0]**2 + pr12[1]**2 + pr12[2]**2 + epsilon**2
+    rr13=pr13[0]**2 + pr13[1]**2 + pr13[2]**2 + epsilon**2
+    rr23=pr23[0]**2 + pr23[1]**2 + pr23[2]**2 + epsilon**2
     #fazendo o inverso para poupar algumas divisões
-
     inv_r12=1/(rr12*np.sqrt(rr12))
     inv_r13=1/(rr13*np.sqrt(rr13))
     inv_r23=1/(rr23*np.sqrt(rr23))
@@ -173,25 +171,6 @@ def atualizaAceleracoes_posicoes(r1,r2,r3,m1,m2,m3):
     a3=G*(-m1*pr13*inv_r13 - m2*pr23*inv_r23)
 
     return a1,a2,a3
-
-'''def atualizaAceleracoes_estado(estado,m1,m2,m3):
-    x1,y1,vx1,vy1,\
-    x2,y2,vx2,vy2,\
-    x3,y3,vx3,vy3=estado
-
-    r1=np.array([x1,y1])
-    r2=np.array([x2,y2])
-    r3=np.array([x3,y3])
-    
-    r12=np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)
-    r13=np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)
-    r23=np.sqrt((np.linalg.norm(r3-r2))**2 + epsilon**2)
-    
-    a1=G*m2*(r2-r1)/r12**3 + G*m3*(r3-r1)/r13**3
-    a2=G*m1*(r1-r2)/r12**3 + G*m3*(r3-r2)/r23**3
-    a3=G*m1*(r1-r3)/r13**3 + G*m2*(r2-r3)/r23**3
-
-    return a1,a2,a3'''
 
 def calculaEnergiaDoSistema(estado,m1,m2,m3): #e momentos linear e angular
     x1,y1,z1,vx1,vy1,vz1,\
@@ -206,35 +185,15 @@ def calculaEnergiaDoSistema(estado,m1,m2,m3): #e momentos linear e angular
     r13=np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)
     r23=np.sqrt((np.linalg.norm(r3-r2))**2 + epsilon**2)
 
-    #v1=np.array([vx1,vy1])
-    #v2=np.array([vx2,vy2])
-    #v3=np.array([vx3,vy3])
-
-    #massas=np.array([m1,m2,m3])
-
-    #momLin.append(np.linalg.norm(m1*v1 + m2*v2 + m3*v3))
-
-    #momAng.append(m1*(r1[0]*v1[1] - r1[1]*v1[0]) + m2*(r2[0]*v2[1] - r2[1]*v2[0]) + m3*(r3[0]*v3[1] - r3[1]*v3[0]))
-
     cinetica=((vx1**2+vy1**2+vz1**2)*m1/2+(vx2**2+vy2**2+vz2**2)*m2/2+(vx3**2+vy3**2+vz3**2)*m3/2)
     
     potencial=-G*(m1*m2/r12+m1*m3/r13+m2*m3/r23)
     
-    #r_min.append(min(r12,r13,r23))
-
     return cinetica+potencial
 
 #retorna um valor aleatório de um parâmetro (multiplica por algum valor entre 0 e 1), podendo ser negativo ou positivo
 def rd(a):
     return float(a)*(2*np.random.rand()-1)
-
-#a rotação de Rodrigues não funcionará 100% com os 3 corpos pois os planos prbitais não são coincidentes muitas vezes
-#SOLUÇÃO: aplicar mais de uma vez a rotação de Rodrigues --> aplico no eixo dominante (Sol-Terra) e depois aplico a mesma rotaç~onos vetores posição e velocidade da Lua, assim todos os corpos estarão no mesmo plano prbital --: CENÁRIO IDEALIZADO, APENAS PARA APRENDIZAGEM
-def rotacionaVetor(v,eixo,angulo):
-    pt1=v*np.cos(angulo)
-    pt2=np.cross(eixo,v)*np.sin(angulo)
-    pt3=eixo*np.dot(eixo,v)*(1-np.cos(angulo))
-    return pt1+pt2+pt3
 
 def calculaMomLin(m1,m2,m3,v1,v2,v3):
     return np.linalg.norm(m1*v1 + m2*v2 + m3*v3)
@@ -246,7 +205,6 @@ def calculaMomAng(m1,m2,m3,r1,r2,r3,v1,v2,v3):
 def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcularMomLin,integrador):
     massas=np.array(massas)
     trajetoria=np.array(trajetoria)
-
 
     #======calculo das invariantes do sistema======
     energias,momLin,momAng=[],[],[]
@@ -260,7 +218,6 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
         energias.append(calcularEnergia(estado,massas[0],massas[1],massas[2]))
         momLin.append(calcularMomLin(massas[0],massas[1],massas[2],v1,v2,v3))
         momAng.append(calcularMomAng(massas[0],massas[1],massas[2],r1,r2,r3,v1,v2,v3))
-    
     energias=np.array(energias)
     momLin=np.array(momLin)
     momAng=np.array(momAng)
@@ -268,18 +225,15 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
     desvioEnerg=(energias.max()-energias.min())/abs(energias.mean())
     #aqui precisei colocar baseando-se na dimensão dos vetores dos momentos para evitar runtime error na simulação 2D, e como é uma função genérica para os 4 simuladores foi necessário manter como condição mesmo
     escala = np.abs(massas[0] * np.linalg.norm(trajetoria[0, 3:6]))
-    #HOUSTON, WE HAVE A PROBLEM
+    #HOUSTON, WE HAVE A PROBLEM...
     if momLin.ndim==1:
         desvioLin=np.max(np.abs(momLin))/escala#np.abs(momLin[0])
     else:
         desvioLin=np.max(np.linalg.norm(momLin,axis=-1))/escala
-    
     if momAng.ndim==1:
         desvioAng=np.max(np.abs(momAng-momAng[0]))/abs(momAng[0])
     else:
         desvioAng=np.max(np.linalg.norm(momAng-momAng[0],axis=-1))/np.linalg.norm(momAng[0]) #lembrando que np.linalg.norm retorna a magnitude, e nesse caso é a magnitude da diferença entre momAng inicial e o atual
-        #desvioLin=np.max(np.linalg.norm(momLin,axis=-1))/np.linalg.norm(momLin[0])
-   
 
     #======reversibilidade======
     estado=trajetoria[0, :-1].copy() #copia a primeira linha sem o tempo
@@ -343,8 +297,7 @@ diferencaMomAngHorizonsXSimulacao=[]
 erro_posicao=[]
 erro_relativo_posicao=[]
 
-
-steps=200000
+steps=400000
 N=0#VALORES PADRÃO
 dt=10#VALORES PADRÃO
 m1simulacao=0
@@ -353,14 +306,12 @@ m2simulacao=0
 num_simul=5
 j=0
 
-#OBS: regra de ouro é manter PELO MENOS 100 steps por órbita, não menos pois senão pode haver proximidade excessiva dependendo do par de corpos em questão
-
 #flag = 0  -->  simulador ALEATÓRIO
 #flag = 1  -->  simulador HORIZONS TERRA-LUA-SOL
 #flag = 2  -->  simulador HORIZONS 
 #flag = 3  -->  simulador HORIZONS 
 #flag = 4  -->  simulador HORIZONS JUPITER-IO-EUROPA
-flagTipoDeSimulacao=4
+flagTipoDeSimulacao=0
 
 if flagTipoDeSimulacao==0:
     dt=0.00025
@@ -368,7 +319,6 @@ if flagTipoDeSimulacao==0:
     epsilon=0#1e-2
 
     while j<num_simul:
-        
         rMomentaneo=[]
         momLin=[]
         momAng=[]
@@ -401,7 +351,6 @@ if flagTipoDeSimulacao==0:
         r1=np.array([x1,y1,z1])
         r2=np.array([x2,y2,z2])
         r3=np.array([x3,y3,z3])
-
         v1=np.array([vx1,vy1,vz1])
         v2=np.array([vx2,vy2,vz2])
         v3=np.array([vx3,vy3,vz3])
@@ -419,7 +368,6 @@ if flagTipoDeSimulacao==0:
         r2-=R_cm
         r3-=R_cm
 
-
         estado = np.array([
             r1[0],r1[1],r1[2],v1[0],v1[1],v1[2],
             r2[0],r2[1],r2[2],v2[0],v2[1],v2[2],
@@ -430,7 +378,6 @@ if flagTipoDeSimulacao==0:
         tempoSimulacao=[]
         energiaDoSistema=[]
         
-
         passoAtual=0
         flag_colisao=0
         tAtual=0.0
@@ -446,7 +393,7 @@ if flagTipoDeSimulacao==0:
             #PARA EVITAR COLISÕES, QUE NÃO É O OBJETIVO DA REDE COMPREENDER, COLOCO ESSE GATILHO PARA EVITAR COLOCAR OS DADOS DA TRAJETÓRIA NO DATASET
             r12=np.sqrt((np.linalg.norm(np.array([estado[6],estado[7],estado[8]])-np.array([estado[0],estado[1],estado[2]])))**2 + epsilon**2)
             r13=np.sqrt((np.linalg.norm(np.array([estado[12],estado[13],estado[14]])-np.array([estado[0],estado[1],estado[2]])))**2 + epsilon**2)
-            r23=np.sqrt((np.linalg.norm(np.array([estado[12],estado[13],estado[14]])-np.array([estado[6],estado[7],estado[8]])))**2 + epsilon**2)#otimizar isso aqui ****************************
+            r23=np.sqrt((np.linalg.norm(np.array([estado[12],estado[13],estado[14]])-np.array([estado[6],estado[7],estado[8]])))**2 + epsilon**2)
         
             r1=estado[0:3]
             v1=estado[3:6]
@@ -457,6 +404,7 @@ if flagTipoDeSimulacao==0:
 
             a1,a2,a3=atualizaAceleracoes_posicoes(r1,r2,r3,m1simulacao,m2simulacao,m3simulacao)
             aceleracoes.append(np.concatenate([a1,a2,a3]))
+
             #evolução do sistema
             estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao,m3simulacao)
 
@@ -469,9 +417,9 @@ if flagTipoDeSimulacao==0:
             #progresso da simulação em porcentagem 
             if passoAtual % 10000 == 0 and passoAtual > 0:
                 print(f"Passo {passoAtual}/{steps} ({100*passoAtual/steps:.1f}%)")
-            if min(r12,r13,r23)<1:
-                print("COLISAO DETECTADA, CANCELANDO SIMULAÇÃO\n\n")
-                print("\nPASSO \n",passoAtual)
+            if min(r12,r13,r23)<1 or energiaDoSistema[0]>0:
+                print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO")
+                print("\nPASSO \n\n",passoAtual)
                 flag_colisao=1
                 break
             
@@ -480,18 +428,13 @@ if flagTipoDeSimulacao==0:
             massas=[m1simulacao,m2simulacao,m3simulacao]
             salvarEstadosNPZ(massas,trajetoria,tempoSimulacao,energiaDoSistema,momAng,momLin,rMomentaneo,aceleracoes,j)
             j+=1
-
             trajetoria=np.array(trajetoria)#aqui o trajetoria deixa de ser uma lista de arrays para ser uma matriz 2D, melhor para fazer cálculos
             energiaDoSistema=np.array(energiaDoSistema)
-            #print(trajetoria.shape)
 
-            #==============VALIDANDO O SIMULADOR#==============
+            #==============VALIDANDO O SIMULADOR==============
             resultados=validarSimulador(trajetoria,massas,dt,calculaEnergiaDoSistema,calculaMomAng,calculaMomLin,yoshida4ordem)
-            #resultados = [desvioEnerg,desvioLin,desvioAng,erroReversao]
             print(f"VALORES DA VALIDAÇÃO:\nDesvio da energia: {resultados[0]}\nDesvio do momento linear: {resultados[1]}\nDesvio do momento angular: {resultados[2]}\nErro da reversão: {resultados[3]:.2e}")
 
-
-            #plotando a imagem da trajetória
             x1=trajetoria[:,0]
             y1=trajetoria[:,1]
             z1=trajetoria[:,2]
@@ -500,85 +443,150 @@ if flagTipoDeSimulacao==0:
             y2=trajetoria[:,7]
             z2=trajetoria[:,8]
 
-    
             x3=trajetoria[:,12]
             y3=trajetoria[:,13]
             z3=trajetoria[:,14]
 
-
-            #==============================GERAÇÃO DE PLOTS EM UMA MESMA IMAGEM==============================
-
-            fig = plt.figure(figsize=(14, 16))
-
-            ax_rmin    = fig.add_subplot(4, 2, 2)
-            ax_momlin  = fig.add_subplot(4, 2, 3)
-            ax_momang  = fig.add_subplot(4, 2, 4)
-            ax_energia = fig.add_subplot(4, 2, 5)
-            ax_erro    = fig.add_subplot(4, 2, 6)
+            fig, axs = plt.subplots(2, 2, figsize=(12, 12))
 
             # ---------------- TRAJETÓRIA 3D ----------------
-            fig = go.Figure()
-            fig.add_trace(go.Scatter3d(x=x1, y=y1, z=z1, mode='lines', name='corpo 1'))
-            fig.add_trace(go.Scatter3d(x=x2, y=y2, z=z2, mode='lines', name='corpo 2'))
-            fig.add_trace(go.Scatter3d(x=x3, y=y3, z=z3, mode='lines', name='corpo 3'))
-            fig.add_trace(go.Scatter3d(x=[x1[0]], y=[y1[0]], z=[z1[0]], mode='markers', showlegend=False))
-            fig.add_trace(go.Scatter3d(x=[x2[0]], y=[y2[0]], z=[z2[0]], mode='markers', showlegend=False))
-            fig.add_trace(go.Scatter3d(x=[x3[0]], y=[y3[0]], z=[z3[0]], mode='markers', showlegend=False))
-            fig.update_layout(title="Trajetória 3D")
-            fig.show()
+            # número de frames da animação
+            n_pontos = 500
+            step_anim = max(1, len(x1) // n_pontos)
+            x1a, y1a, z1a = x1[::step_anim], y1[::step_anim], z1[::step_anim]
+            x2a, y2a, z2a = x2[::step_anim], y2[::step_anim], z2[::step_anim]
+            x3a, y3a, z3a = x3[::step_anim], y3[::step_anim], z3[::step_anim]
 
-            # ---------------- r_min ----------------
-            ax_rmin.plot(rMomentaneo)
-            ax_rmin.set_title("Distância entre os corpos")
-            ax_rmin.grid()
+            n_frames = 100  # menos frames também ajuda
+            indices = np.linspace(0, len(x1a)-1, n_frames, dtype=int)
 
-            # ---------------- Momento Linear ----------------
-            ax_momlin.plot(momLin)
-            ax_momlin.set_title("Momento Linear")
-            ax_momlin.grid()
+            frames = []
+            for k, idx in enumerate(indices):
+                frames.append(go.Frame(
+                    data=[
+                        go.Scatter3d(x=x1a[:idx+1], y=y1a[:idx+1], z=z1a[:idx+1],
+                                    mode='lines', line=dict(color='blue', width=2), name='corpo 1'),
+                        go.Scatter3d(x=x2a[:idx+1], y=y2a[:idx+1], z=z2a[:idx+1],
+                                    mode='lines', line=dict(color='red', width=2), name='corpo 2'),
+                        go.Scatter3d(x=x3a[:idx+1], y=y3a[:idx+1], z=z3a[:idx+1],
+                                    mode='lines', line=dict(color='green', width=2), name='corpo 3'),
+                        go.Scatter3d(x=[x1a[idx]], y=[y1a[idx]], z=[z1a[idx]],
+                                    mode='markers', marker=dict(size=6, color='blue'), showlegend=False),
+                        go.Scatter3d(x=[x2a[idx]], y=[y2a[idx]], z=[z2a[idx]],
+                                    mode='markers', marker=dict(size=6, color='red'), showlegend=False),
+                        go.Scatter3d(x=[x3a[idx]], y=[y3a[idx]], z=[z3a[idx]],
+                                    mode='markers', marker=dict(size=6, color='green'), showlegend=False),
+                    ],
+                    name=str(k)
+                ))
+            
 
-            # ---------------- Momento Angular (agora vetor 3D) ----------------
-            momAng = np.array(momAng)
-            if momAng.ndim == 2:
-                ax_momang.plot(momAng[:, 0], label='Lx')
-                ax_momang.plot(momAng[:, 1], label='Ly')
-                ax_momang.plot(momAng[:, 2], label='Lz')
-                ax_momang.legend(fontsize=7)
-            else:
-                ax_momang.plot(momAng)
-            ax_momang.set_title("Momento Angular")
-            ax_momang.grid()
+            # estado inicial
+            figTrajetoria = go.Figure(
+                data=[
+                    go.Scatter3d(x=[x1a[0]], y=[y1a[0]], z=[z1a[0]],
+                                mode='lines+markers', line=dict(color='blue'), name='corpo 1'),
+                    go.Scatter3d(x=[x2a[0]], y=[y2a[0]], z=[z2a[0]],
+                                mode='lines+markers', line=dict(color='red'), name='corpo 2'),
+                    go.Scatter3d(x=[x3a[0]], y=[y3a[0]], z=[z3a[0]],
+                                mode='lines+markers', line=dict(color='green'), name='corpo 3'),
+                    go.Scatter3d(x=[x1a[0]], y=[y1a[0]], z=[z1a[0]],
+                                mode='markers', marker=dict(size=6, color='blue'), showlegend=False),
+                    go.Scatter3d(x=[x2a[0]], y=[y2a[0]], z=[z2a[0]],
+                                mode='markers', marker=dict(size=6, color='red'), showlegend=False),
+                    go.Scatter3d(x=[x3a[0]], y=[y3a[0]], z=[z3a[0]],
+                                mode='markers', marker=dict(size=6, color='green'), showlegend=False),
+                ],
+                frames=frames
+            )
+
+            duracao_ms = 10000  # 10 segundos
+            ms_por_frame = duracao_ms // n_frames
+
+            figTrajetoria.update_layout(
+                title="Simulação 3D - 3 Corpos",
+                updatemenus=[dict(
+                    type='buttons',
+                    showactive=False,
+                    y=1.05, x=0.1,
+                    buttons=[
+                        dict(label='▶ Play',
+                            method='animate',
+                            args=[None, dict(frame=dict(duration=ms_por_frame, redraw=True),
+                                            fromcurrent=True, mode='immediate')]),
+                        dict(label='⏸ Pause',
+                            method='animate',
+                            args=[[None], dict(frame=dict(duration=0, redraw=False),
+                                                mode='immediate')])
+                    ]
+                )],
+                sliders=[dict(
+                    steps=[dict(method='animate',
+                                args=[[str(k)], dict(mode='immediate',
+                                                    frame=dict(duration=ms_por_frame, redraw=True))],
+                                label=str(k)) for k in range(n_frames)],
+                    x=0.1, y=0, len=0.9
+                )]
+            )
+
+            figTrajetoria.show()
+            '''figTrajetoria = go.Figure()
+            figTrajetoria.add_trace(go.Scatter3d(x=x1, y=y1, z=z1, mode='lines', name='corpo 1'))
+            figTrajetoria.add_trace(go.Scatter3d(x=x2, y=y2, z=z2, mode='lines', name='corpo 2'))
+            figTrajetoria.add_trace(go.Scatter3d(x=x3, y=y3, z=z3, mode='lines', name='corpo 3'))
+            figTrajetoria.add_trace(go.Scatter3d(x=[x1[0]], y=[y1[0]], z=[z1[0]], mode='markers', showlegend=False))
+            figTrajetoria.add_trace(go.Scatter3d(x=[x2[0]], y=[y2[0]], z=[z2[0]], mode='markers', showlegend=False))
+            figTrajetoria.add_trace(go.Scatter3d(x=[x3[0]], y=[y3[0]], z=[z3[0]], mode='markers', showlegend=False))
+            figTrajetoria.update_layout(title="Trajetória 3D")
+            figTrajetoria.show()'''
+            
+            # ---------------- TRAJETÓRIA ----------------
+            axs[0,0].plot(x1, y1, label='corpo 1')
+            axs[0,0].plot(x2, y2, label='corpo 2')
+            axs[0,0].plot(x3, y3, label='corpo 3')
+            axs[0,0].scatter(x1[0], y1[0])
+            axs[0,0].scatter(x2[0], y2[0])
+            axs[0,0].scatter(x3[0], y3[0])
+            axs[0,0].set_title("Trajetória")
+            axs[0,0].axis("equal")
+            axs[0,0].grid()
+
+            # ---------------- Erro relativo da posição em porcentagem ----------------
+            axs[0,1].plot(erro_relativo_posicao)
+            #erro_absoluto_km = np.array(erro_posicao) / 1e3
+            #axs[0,1].plot(erro_absoluto_km)
+            axs[0,1].set_title("Erro relativo da posição em porcentagem")
+            axs[0,1].grid()
 
             # ---------------- Energia ----------------
-            ax_energia.plot(energiaDoSistema)
-            ax_energia.set_title("Energia Total")
-            ax_energia.grid()
+            axs[0,1].plot(energiaDoSistema)
+            axs[0,1].set_title("Energia Total")
+            axs[0,1].ticklabel_format(useOffset=False, style='sci', axis='y')
+            axs[0,1].grid()
 
-            # ---------------- Erro relativo ----------------
+            # ---------------- Erro relativo SIMULADOR----------------
             E0 = energiaDoSistema[0]
-            print("Órbita ligada" if E0 < 0 else "Hiperbólica - não ligado")
-            erro_relativo = (energiaDoSistema - E0) / abs(E0)
-            ax_erro.plot(erro_relativo)
-            ax_erro.set_title("Erro Relativo da Energia")
-            ax_erro.grid()
+            print("Órbita ligada" if E0<0 else "Hiperbólica - não ligado")
+            erro_relativo = (energiaDoSistema - E0)/abs(E0)
+            axs[1,0].plot(erro_relativo)
+            axs[1,0].set_title("Erro Relativo da Energia do SIMULADOR")
+            axs[1,0].grid()
 
             plt.tight_layout()
             plt.show()
 
 else: 
     G=6.6743e-11
-    epsilon=1e-12 #para ser uma simulação fisicamente acurada/real essa variável tem que ser praticamente ZERO
+    epsilon=1e-12
     if flagTipoDeSimulacao==1:
         '''N=120 #numero de subpassos
         dt=3600/N'''
-        
-        N = 720               # subpassos
-        dt = 6*3600 / N
         #steps = 721     #30 dias 1h
         #steps = 1440     #60 dias 1h
         #steps = 1460    #365 dias 6h
+        N = 720               # subpassos
+        dt = 6*3600 / N
         
-
         m1simulacao=mTerra
         m2simulacao=mLua
         m3simulacao=mSol
@@ -595,16 +603,11 @@ else:
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("LUA")'''
 
         steps = len(xt)
-
-        #estadoTerraLua=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]]
     
     elif flagTipoDeSimulacao==2:
         steps = 721
         N=12
         dt=3600/N
-
-        '''x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoPluaoCaronte'''
 
         m1simulacao=mPlutao
         m2simulacao=mCaronte
@@ -613,95 +616,35 @@ else:
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("PLUTAO")
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("CARONTE")   
 
-        #estadoPluaoCaronte=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]] 
-
     elif flagTipoDeSimulacao==3:
-
         N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
         dt=600/N
         steps = 721
        
-
-        '''x1,y1,vx1,vy1,\
-        x2,y2,vx2,vy2=estadoMarteFobos'''
-
         m1simulacao=mMarte
         m2simulacao=mFobos
         m3simulacao=mSol
         xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("SOL")
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("MARTE")
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("FOBOS")
-
-        #estadoMarteFobos=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]] 
     
     elif flagTipoDeSimulacao==4:
-
         N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
         dt=3600/N
-        steps = 721
-
+        #steps = 721
+        
         m1simulacao=mJupiter
         m2simulacao=mIo
         m3simulacao=mEuropa
         xs,ys,zs,vxs,vys,vzs=carregarDadosHorizonsNPZ("EUROPA")
         xt,yt,zt,vxt,vyt,vzt=carregarDadosHorizonsNPZ("JUPITER")
         xl,yl,zl,vxl,vyl,vzl=carregarDadosHorizonsNPZ("IO")
-
-        #estadoJupiterIo=[xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0],xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]] 
-
+        
+        steps = len(xt)
 
     xt,yt,zt,vxt,vyt,vzt=xt*1e3,yt*1e3,zt*1e3,vxt*1e3,vyt*1e3,vzt*1e3
     xl,yl,zl,vxl,vyl,vzl=xl*1e3,yl*1e3,zl*1e3,vxl*1e3,vyl*1e3,vzl*1e3
     xs,ys,zs,vxs,vys,vzs=xs*1e3,ys*1e3,zs*1e3,vxs*1e3,vys*1e3,vzs*1e3
-
-    #aplicando a rotação de Rodrigues para que o plano orbital esteja no plano XY gerado pela simulação
-    rRelRot=xt[0]-xs[0],yt[0]-ys[0],zt[0]-zs[0]
-    vRelRot=vxt[0]-vxs[0],vyt[0]-vys[0],vzt[0]-vzs[0]
-
-    L=np.cross(rRelRot,vRelRot)
-
-    zUnitario=np.array([0,0,1])
-    LUnitario=L/np.linalg.norm(L)
-
-    eixo=np.cross(LUnitario,zUnitario)
-    eixo=eixo/np.linalg.norm(eixo)
-
-    angulo=np.arccos(np.dot(LUnitario,zUnitario))
-    
-
-    #rotacionando com método de Rodrigues
-    for i in range(len(xt)):
-        rT=np.array([xt[i],yt[i],zt[i]])
-        rL=np.array([xl[i],yl[i],zl[i]])
-        rS=np.array([xs[i],ys[i],zs[i]])
-        vT=np.array([vxt[i],vyt[i],vzt[i]])
-        vL=np.array([vxl[i],vyl[i],vzl[i]])
-        vS=np.array([vxs[i],vys[i],vzs[i]])
-        
-        '''
-        def rotacionaVetor(v,eixo,angulo):
-        pt1=v*np.cos(angulo)
-        pt2=np.cross(eixo,v)*np.sin(angulo)
-        pt3=eixo*np.dot(eixo,v)*(1-np.cos(angulo))
-        return pt1+pt2+pt3
-        '''
-
-
-        '''rT_rot=rotacionaVetor(rT,eixo,angulo)
-        rL_rot=rotacionaVetor(rL,eixo,angulo)
-        rS_rot=rotacionaVetor(rS,eixo,angulo)
-        vT_rot=rotacionaVetor(vT,eixo,angulo)
-        vL_rot=rotacionaVetor(vL,eixo,angulo)
-        vS_rot=rotacionaVetor(vS,eixo,angulo)
-        
-        
-        xt[i],yt[i]=rT_rot[0],rT_rot[1]
-        xl[i],yl[i]=rL_rot[0],rL_rot[1]
-        xs[i],ys[i]=rS_rot[0],rS_rot[1]
-        vxt[i],vyt[i]=vT_rot[0],vT_rot[1]
-        vxl[i],vyl[i]=vL_rot[0],vL_rot[1]
-        vxs[i],vys[i]=vS_rot[0],vS_rot[1]'''
-
 
     x1,y1,z1,vx1,vy1,vz1=xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0]
     x2,y2,z2,vx2,vy2,vz2=xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]#isso substituiria a declaração dos valores de X e Y em estadoTerraLua... burrice minha, simplesmente
@@ -716,9 +659,6 @@ else:
         x3-R_cm0[0],y3-R_cm0[1],z3-R_cm0[2],vx3-V_cm0[0],vy3-V_cm0[1],vz3-V_cm0[2]
     ])
 
-
-
-
     passoAtual=0
     flag_colisao=0
     tAtual=0.0
@@ -726,19 +666,9 @@ else:
     for i in range(steps):
         passoAtual+=1
 
-        '''for _ in range(N):
-            estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
-        match flagTipoDeSimulacao:
-            case 1: tAtual+=3600
-            case 2: tAtual+=3600
-            case 3: tAtual+=600
-            case 4: tAtual+=3600
-            case _: tAtual+=1'''
-
         estadoComTempo=np.append(estado.copy(),tAtual)
         trajetoria.append(estadoComTempo)
         tempoSimulacao.append(tAtual)
-
         energiaDoSistema.append(calculaEnergiaDoSistema(estado,m1simulacao,m2simulacao,m3simulacao))
         #lembrando que o referencial do HORIZONS é diferente do referencial usado na simulação, pois no horizons usa-se o baricentro do sistema solar
         R_cm_HOR=(m1simulacao*np.array([xt[i],yt[i],zt[i]])+m2simulacao*np.array([xl[i],yl[i],zl[i]])+m3simulacao*np.array([xs[i],ys[i],zs[i]]))/(m1simulacao+m2simulacao+m3simulacao)
@@ -750,7 +680,6 @@ else:
         ]
 
         energiaHorizons.append(calculaEnergiaDoSistema(estadoHorizons,m1simulacao,m2simulacao,m3simulacao))
-        
         diferencaEnergiaHorizonsXSimulacao.append(energiaHorizons[i]-energiaDoSistema[i])
 
         r1=estado[0:3]
@@ -760,12 +689,6 @@ else:
         r3=estado[12:15]
         v3=estado[15:18]
 
-        '''r1 = estado[0:2]
-        v1 = estado[2:4]
-        r2 = estado[4:6]
-        v2 = estado[6:8]
-        r3 = estado[8:10]
-        v3 = estado[10:12]'''
         r_dinamicoSistema.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r2-r3))**2 + epsilon**2))
 
         momLinSistema.append(calculaMomLin(m1simulacao,m2simulacao,m3simulacao,v1,v2,v3))
@@ -790,23 +713,14 @@ else:
         diferencaMomAngHorizonsXSimulacao.append(momAngHorizons[i]-momAngSistema[i])
 
         diferencaDistanciaHorizonsXSimulacao.append(r_dinamicoHorizons[i]-r_dinamicoSistema[i])
-        
-        '''r1=estado[0:3]
-        v1=estado[3:6]
-        r2=estado[6:9]
-        v2=estado[9:12]
-        r3=estado[12:15]
-        v3=estado[15:18]'''
 
         #diferença de posição relativa (das somas das posições relativas, na verdade --> inútil, porém interessante)
         r_rel_sim=(estado[6:9]-estado[0:3])+(estado[12:15]-estado[0:3])+(estado[12:15]-estado[6:9])  #simulador
         r_rel_hor=np.array([(xl[i]-xt[i])+(xl[i]-xs[i])+(xt[i]-xs[i]),(yl[i]-yt[i])+(yl[i]-ys[i])+(yt[i]-ys[i]),(zl[i]-zt[i])+(zl[i]-zs[i])+(zt[i]-zs[i])]) #HORIZONS
 
         erro_posicao.append(np.linalg.norm(r_rel_sim-r_rel_hor))
-        #erro_relativo_posicao=100*np.array(erro_posicao)/np.array(r_dinamicoSistema) #colocado fora do loop
 
         #evolução do sistema
-        #estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
         for _ in range(N):
             estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao,m3simulacao)
         match flagTipoDeSimulacao:
@@ -820,16 +734,12 @@ else:
         if passoAtual % 10000 == 0 and passoAtual > 0:
             print(f"Passo {passoAtual}/{steps} ({100*passoAtual/steps:.1f}%)")
 
-
     erro_relativo_posicao=100*np.array(erro_posicao)/np.array(r_dinamicoSistema)
-    
 
     #==============VALIDANDO O SIMULADOR#==============
     massas=[m1simulacao,m2simulacao,m3simulacao]
     resultados=validarSimulador(trajetoria,massas,dt,calculaEnergiaDoSistema,calculaMomAng,calculaMomLin,yoshida4ordem)
-    #resultados = [desvioEnerg,desvioLin,desvioAng,erroReversao]
     print(f"VALORES DA VALIDAÇÃO:\nDesvio da energia: {resultados[0]}\nDesvio do momento linear: {resultados[1]}\nDesvio do momento angular: {resultados[2]}\nErro da reversão: {resultados[3]:.2e}")
-
     
     #==========================================GERAÇÃO DE PLOTS EM UMA MESMA IMAGEM==========================================
     trajetoria=np.array(trajetoria)#aqui o trajetoria deixa de ser uma lista de arrays para ser uma matriz 2D, melhor para fazer cálculos
@@ -844,81 +754,40 @@ else:
     y2=trajetoria[:,7]
     z2=trajetoria[:,8]
 
-
     x3=trajetoria[:,12]
     y3=trajetoria[:,13]
     z3=trajetoria[:,14]
 
     fig, axs = plt.subplots(4, 2, figsize=(12, 12))
-    #fig = plt.figure(figsize=(14, 16))
-
-
-    # ---------------- TRAJETÓRIA 3D ----------------
-    fig = go.Figure()
-    fig.add_trace(go.Scatter3d(x=x1, y=y1, z=z1, mode='lines', name='corpo 1'))
-    fig.add_trace(go.Scatter3d(x=x2, y=y2, z=z2, mode='lines', name='corpo 2'))
-    fig.add_trace(go.Scatter3d(x=x3, y=y3, z=z3, mode='lines', name='corpo 3'))
-    fig.add_trace(go.Scatter3d(x=[x1[0]], y=[y1[0]], z=[z1[0]], mode='markers', showlegend=False))
-    fig.add_trace(go.Scatter3d(x=[x2[0]], y=[y2[0]], z=[z2[0]], mode='markers', showlegend=False))
-    fig.add_trace(go.Scatter3d(x=[x3[0]], y=[y3[0]], z=[z3[0]], mode='markers', showlegend=False))
-    fig.update_layout(title="Trajetória 3D")
-    fig.show()
-    '''
-    # ---------------- r_min ----------------
-    ax_rmin.plot(rMomentaneo)
-    ax_rmin.set_title("Distância entre os corpos")
-    ax_rmin.grid()
-
-    # ---------------- Momento Linear ----------------
-    ax_momlin.plot(momLin)
-    ax_momlin.set_title("Momento Linear")
-    ax_momlin.grid()
-
-    # ---------------- Momento Angular (agora vetor 3D) ----------------
-    momAng = np.array(momAng)
-    if momAng.ndim == 2:
-        ax_momang.plot(momAng[:, 0], label='Lx')
-        ax_momang.plot(momAng[:, 1], label='Ly')
-        ax_momang.plot(momAng[:, 2], label='Lz')
-        ax_momang.legend(fontsize=7)
-    else:
-        ax_momang.plot(momAng)
-    ax_momang.set_title("Momento Angular")
-    ax_momang.grid()
-
-    # ---------------- Energia ----------------
-    ax_energia.plot(energiaDoSistema)
-    ax_energia.set_title("Energia Total")
-    ax_energia.grid()
-
-    # ---------------- Erro relativo ----------------
-    E0 = energiaDoSistema[0]
-    print("Órbita ligada" if E0 < 0 else "Hiperbólica - não ligado")
-    erro_relativo = (energiaDoSistema - E0) / abs(E0)
-    ax_erro.plot(erro_relativo)
-    ax_erro.set_title("Erro Relativo da Energia")
-    ax_erro.grid()
-
-    plt.tight_layout()
-    plt.show()'''
-
+  
+      # ---------------- TRAJETÓRIA 3D ----------------
+    figTrajetoria = go.Figure()
+    figTrajetoria.add_trace(go.Scatter3d(x=x1, y=y1, z=z1, mode='lines', name='corpo 1'))
+    figTrajetoria.add_trace(go.Scatter3d(x=x2, y=y2, z=z2, mode='lines', name='corpo 2'))
+    figTrajetoria.add_trace(go.Scatter3d(x=x3, y=y3, z=z3, mode='lines', name='corpo 3'))
+    figTrajetoria.add_trace(go.Scatter3d(x=[x1[0]], y=[y1[0]], z=[z1[0]], mode='markers', showlegend=False))
+    figTrajetoria.add_trace(go.Scatter3d(x=[x2[0]], y=[y2[0]], z=[z2[0]], mode='markers', showlegend=False))
+    figTrajetoria.add_trace(go.Scatter3d(x=[x3[0]], y=[y3[0]], z=[z3[0]], mode='markers', showlegend=False))
+    figTrajetoria.update_layout(title="Trajetória 3D")
+    figTrajetoria.show()
+    
     # ---------------- TRAJETÓRIA ----------------
-    axs[0,0].plot(x1, y1, label='corpo 1')
-    axs[0,0].plot(x2, y2, label='corpo 2')
-    axs[0,0].plot(x3, y3, label='corpo 3')
-    axs[0,0].scatter(x1[0], y1[0])
-    axs[0,0].scatter(x2[0], y2[0])
-    axs[0,0].scatter(x3[0], y3[0])
-    axs[0,0].set_title("Trajetória")
-    axs[0,0].axis("equal")
-    axs[0,0].grid()
+    axs[3,1].plot(x1, y1, label='corpo 1')
+    axs[3,1].plot(x2, y2, label='corpo 2')
+    axs[3,1].plot(x3, y3, label='corpo 3')
+    axs[3,1].scatter(x1[0], y1[0])
+    axs[3,1].scatter(x2[0], y2[0])
+    axs[3,1].scatter(x3[0], y3[0])
+    axs[3,1].set_title("Trajetória")
+    axs[3,1].axis("equal")
+    axs[3,1].grid()
 
     # ---------------- Erro relativo da posição em porcentagem ----------------
-    axs[0,1].plot(erro_relativo_posicao)
+    axs[0,0].plot(erro_relativo_posicao)
     #erro_absoluto_km = np.array(erro_posicao) / 1e3
     #axs[0,1].plot(erro_absoluto_km)
-    axs[0,1].set_title("Erro relativo da posição em porcentagem")
-    axs[0,1].grid()
+    axs[0,0].set_title("Erro relativo da posição em porcentagem")
+    axs[0,0].grid()
 
     # ---------------- Diferença no Momento Linear ----------------
     axs[1,0].plot(diferencaMomLinHorizonsXSimulacao)
@@ -926,8 +795,9 @@ else:
     axs[1,0].grid()
 
     # ---------------- Momento Angular ----------------
-    axs[1,1].plot(diferencaMomAngHorizonsXSimulacao)
-    axs[1,1].set_title("Diferença no Momento Angular")
+    
+    axs[1,1].plot(np.linalg.norm(np.array(diferencaMomAngHorizonsXSimulacao),axis=1))
+    axs[1,1].set_title("Diferença no Momento Angular estre o SIMULADOR e HORIZONS")
     axs[1,1].grid()
 
     # ---------------- Energia ----------------
@@ -954,9 +824,9 @@ else:
     axs[3,0].grid()
 
     # ---------------- Diferença absoluta de distância ----------------
-    axs[3,1].plot(r_hor_km - r_sim_km)
-    axs[3,1].set_title("Diferença de distância HORIZONS - SIMULADOR (km)")
-    axs[3,1].grid()
+    axs[0,1].plot(r_hor_km - r_sim_km)
+    axs[0,1].set_title("Diferença de distância HORIZONS - SIMULADOR (km)")
+    axs[0,1].grid()
 
     plt.tight_layout()
     plt.show()
