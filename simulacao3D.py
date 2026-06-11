@@ -1,7 +1,8 @@
 import numpy as np, matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from plotly import graph_objects as go
-
+from multiprocessing import Pool
+import os
 
 def extrair_horizons(arquivoEntrada):
     dados={
@@ -246,7 +247,15 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
 
     return [desvioEnerg,desvioLin,desvioAng,erroReversao]
 
+
+
+
+
+
+
 #============================== VARIÁVEIS DA SIMULAÇÃO =================================
+
+
 #salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsLua60d.txt'),"LUA60d")
 #salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsTerra60d.txt'),"TERRA60d")
 #salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsSol60d.txt'),"SOL60d")
@@ -311,12 +320,23 @@ j=0
 #flag = 2  -->  simulador HORIZONS 
 #flag = 3  -->  simulador HORIZONS 
 #flag = 4  -->  simulador HORIZONS JUPITER-IO-EUROPA
-flagTipoDeSimulacao=0
+flagTipoDeSimulacao=4
+
+
+
+
+
+
+#============================== SIMULAÇÃO =================================
+
+
+
+
 
 if flagTipoDeSimulacao==0:
     dt=0.00025
     G=1
-    epsilon=0#1e-2
+    epsilon=1e-6  #0  #1e-2
 
     while j<num_simul:
         rMomentaneo=[]
@@ -422,6 +442,8 @@ if flagTipoDeSimulacao==0:
                 print("\nPASSO \n\n",passoAtual)
                 flag_colisao=1
                 break
+
+            tAtual+=dt
             
         #salva os dados da simulação se não houve colisão
         if(flag_colisao==0):  
@@ -559,10 +581,10 @@ if flagTipoDeSimulacao==0:
             axs[0,1].grid()
 
             # ---------------- Energia ----------------
-            axs[0,1].plot(energiaDoSistema)
-            axs[0,1].set_title("Energia Total")
-            axs[0,1].ticklabel_format(useOffset=False, style='sci', axis='y')
-            axs[0,1].grid()
+            axs[1,1].plot(energiaDoSistema)
+            axs[1,1].set_title("Energia Total")
+            axs[1,1].ticklabel_format(useOffset=False, style='sci', axis='y')
+            axs[1,1].grid()
 
             # ---------------- Erro relativo SIMULADOR----------------
             E0 = energiaDoSistema[0]
@@ -758,75 +780,120 @@ else:
     y3=trajetoria[:,13]
     z3=trajetoria[:,14]
 
-    fig, axs = plt.subplots(4, 2, figsize=(12, 12))
-  
-      # ---------------- TRAJETÓRIA 3D ----------------
-    figTrajetoria = go.Figure()
-    figTrajetoria.add_trace(go.Scatter3d(x=x1, y=y1, z=z1, mode='lines', name='corpo 1'))
-    figTrajetoria.add_trace(go.Scatter3d(x=x2, y=y2, z=z2, mode='lines', name='corpo 2'))
-    figTrajetoria.add_trace(go.Scatter3d(x=x3, y=y3, z=z3, mode='lines', name='corpo 3'))
-    figTrajetoria.add_trace(go.Scatter3d(x=[x1[0]], y=[y1[0]], z=[z1[0]], mode='markers', showlegend=False))
-    figTrajetoria.add_trace(go.Scatter3d(x=[x2[0]], y=[y2[0]], z=[z2[0]], mode='markers', showlegend=False))
-    figTrajetoria.add_trace(go.Scatter3d(x=[x3[0]], y=[y3[0]], z=[z3[0]], mode='markers', showlegend=False))
-    figTrajetoria.update_layout(title="Trajetória 3D")
+    fig, axs = plt.subplots(2, 2, figsize=(12, 12))
+
+    # ---------------- TRAJETÓRIA 3D ----------------
+    # número de frames da animação
+    n_pontos = 500
+    step_anim = max(1, len(x1) // n_pontos)
+    x1a, y1a, z1a = x1[::step_anim], y1[::step_anim], z1[::step_anim]
+    x2a, y2a, z2a = x2[::step_anim], y2[::step_anim], z2[::step_anim]
+    x3a, y3a, z3a = x3[::step_anim], y3[::step_anim], z3[::step_anim]
+
+    n_frames = 100  # menos frames também ajuda
+    indices = np.linspace(0, len(x1a)-1, n_frames, dtype=int)
+
+    frames = []
+    for k, idx in enumerate(indices):
+        frames.append(go.Frame(
+            data=[
+                go.Scatter3d(x=x1a[:idx+1], y=y1a[:idx+1], z=z1a[:idx+1],
+                            mode='lines', line=dict(color='blue', width=2), name='corpo 1'),
+                go.Scatter3d(x=x2a[:idx+1], y=y2a[:idx+1], z=z2a[:idx+1],
+                            mode='lines', line=dict(color='red', width=2), name='corpo 2'),
+                go.Scatter3d(x=x3a[:idx+1], y=y3a[:idx+1], z=z3a[:idx+1],
+                            mode='lines', line=dict(color='green', width=2), name='corpo 3'),
+                go.Scatter3d(x=[x1a[idx]], y=[y1a[idx]], z=[z1a[idx]],
+                            mode='markers', marker=dict(size=6, color='blue'), showlegend=False),
+                go.Scatter3d(x=[x2a[idx]], y=[y2a[idx]], z=[z2a[idx]],
+                            mode='markers', marker=dict(size=6, color='red'), showlegend=False),
+                go.Scatter3d(x=[x3a[idx]], y=[y3a[idx]], z=[z3a[idx]],
+                            mode='markers', marker=dict(size=6, color='green'), showlegend=False),
+            ],
+            name=str(k)
+        ))
+    
+
+    # estado inicial
+    figTrajetoria = go.Figure(
+        data=[
+            go.Scatter3d(x=[x1a[0]], y=[y1a[0]], z=[z1a[0]],
+                        mode='lines+markers', line=dict(color='blue'), name='corpo 1'),
+            go.Scatter3d(x=[x2a[0]], y=[y2a[0]], z=[z2a[0]],
+                        mode='lines+markers', line=dict(color='red'), name='corpo 2'),
+            go.Scatter3d(x=[x3a[0]], y=[y3a[0]], z=[z3a[0]],
+                        mode='lines+markers', line=dict(color='green'), name='corpo 3'),
+            go.Scatter3d(x=[x1a[0]], y=[y1a[0]], z=[z1a[0]],
+                        mode='markers', marker=dict(size=6, color='blue'), showlegend=False),
+            go.Scatter3d(x=[x2a[0]], y=[y2a[0]], z=[z2a[0]],
+                        mode='markers', marker=dict(size=6, color='red'), showlegend=False),
+            go.Scatter3d(x=[x3a[0]], y=[y3a[0]], z=[z3a[0]],
+                        mode='markers', marker=dict(size=6, color='green'), showlegend=False),
+        ],
+        frames=frames
+    )
+
+    duracao_ms = 10000  # 10 segundos
+    ms_por_frame = duracao_ms // n_frames
+
+    figTrajetoria.update_layout(
+        title="Simulação 3D - 3 Corpos",
+        updatemenus=[dict(
+            type='buttons',
+            showactive=False,
+            y=1.05, x=0.1,
+            buttons=[
+                dict(label='▶ Play',
+                    method='animate',
+                    args=[None, dict(frame=dict(duration=ms_por_frame, redraw=True),
+                                    fromcurrent=True, mode='immediate')]),
+                dict(label='⏸ Pause',
+                    method='animate',
+                    args=[[None], dict(frame=dict(duration=0, redraw=False),
+                                        mode='immediate')])
+            ]
+        )],
+        sliders=[dict(
+            steps=[dict(method='animate',
+                        args=[[str(k)], dict(mode='immediate',
+                                            frame=dict(duration=ms_por_frame, redraw=True))],
+                        label=str(k)) for k in range(n_frames)],
+            x=0.1, y=0, len=0.9
+        )]
+    )
     figTrajetoria.show()
     
     # ---------------- TRAJETÓRIA ----------------
-    axs[3,1].plot(x1, y1, label='corpo 1')
-    axs[3,1].plot(x2, y2, label='corpo 2')
-    axs[3,1].plot(x3, y3, label='corpo 3')
-    axs[3,1].scatter(x1[0], y1[0])
-    axs[3,1].scatter(x2[0], y2[0])
-    axs[3,1].scatter(x3[0], y3[0])
-    axs[3,1].set_title("Trajetória")
-    axs[3,1].axis("equal")
-    axs[3,1].grid()
-
-    # ---------------- Erro relativo da posição em porcentagem ----------------
-    axs[0,0].plot(erro_relativo_posicao)
-    #erro_absoluto_km = np.array(erro_posicao) / 1e3
-    #axs[0,1].plot(erro_absoluto_km)
-    axs[0,0].set_title("Erro relativo da posição em porcentagem")
+    axs[0,0].plot(x1, y1, label='corpo 1')
+    axs[0,0].plot(x2, y2, label='corpo 2')
+    axs[0,0].plot(x3, y3, label='corpo 3')
+    axs[0,0].scatter(x1[0], y1[0])
+    axs[0,0].scatter(x2[0], y2[0])
+    axs[0,0].scatter(x3[0], y3[0])
+    axs[0,0].set_title("Trajetória")
+    axs[0,0].axis("equal")
     axs[0,0].grid()
 
-    # ---------------- Diferença no Momento Linear ----------------
-    axs[1,0].plot(diferencaMomLinHorizonsXSimulacao)
-    axs[1,0].set_title("Diferença no Momento Linear")
-    axs[1,0].grid()
-
-    # ---------------- Momento Angular ----------------
-    
-    axs[1,1].plot(np.linalg.norm(np.array(diferencaMomAngHorizonsXSimulacao),axis=1))
-    axs[1,1].set_title("Diferença no Momento Angular estre o SIMULADOR e HORIZONS")
-    axs[1,1].grid()
+    # ---------------- Erro relativo da posição em porcentagem ----------------
+    axs[0,1].plot(erro_relativo_posicao)
+    #erro_absoluto_km = np.array(erro_posicao) / 1e3
+    #axs[0,1].plot(erro_absoluto_km)
+    axs[0,1].set_title("Erro relativo da posição em porcentagem")
+    axs[0,1].grid()
 
     # ---------------- Energia ----------------
-    axs[2,0].plot(energiaDoSistema)
-    axs[2,0].set_title("Energia Total")
-    axs[2,0].ticklabel_format(useOffset=False, style='sci', axis='y')
-    axs[2,0].grid()
-
-    # ---------------- Energia dos dados HORIZONS----------------
-    r_sim_km = np.array(r_dinamicoSistema) / 1e3
-    r_hor_km = np.array(r_dinamicoHorizons) / 1e3
-
-    axs[2,1].plot(r_sim_km, label='Simulador', lw=1)
-    axs[2,1].plot(r_hor_km, label='HORIZONS (2D)', lw=1, alpha=0.7)
-    axs[2,1].set_title("Distância relativa (km)")
-    axs[2,1].legend(fontsize=7)
-    axs[2,1].grid()
+    axs[1,1].plot(energiaDoSistema)
+    axs[1,1].set_title("Energia Total")
+    axs[1,1].ticklabel_format(useOffset=False, style='sci', axis='y')
+    axs[1,1].grid()
 
     # ---------------- Erro relativo SIMULADOR----------------
     E0 = energiaDoSistema[0]
+    print("Órbita ligada" if E0<0 else "Hiperbólica - não ligado")
     erro_relativo = (energiaDoSistema - E0)/abs(E0)
-    axs[3,0].plot(erro_relativo)
-    axs[3,0].set_title("Erro Relativo da Energia do SIMULADOR")
-    axs[3,0].grid()
-
-    # ---------------- Diferença absoluta de distância ----------------
-    axs[0,1].plot(r_hor_km - r_sim_km)
-    axs[0,1].set_title("Diferença de distância HORIZONS - SIMULADOR (km)")
-    axs[0,1].grid()
+    axs[1,0].plot(erro_relativo)
+    axs[1,0].set_title("Erro Relativo da Energia do SIMULADOR")
+    axs[1,0].grid()
 
     plt.tight_layout()
     plt.show()
