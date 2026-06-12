@@ -72,7 +72,7 @@ def carregarDadosHorizonsNPZ(nome):
     dados=np.load(f"simulacoesArtificiais/horizons{nome}.npz")
     return (dados["X"],dados["Y"],dados["Z"],dados["VX"],dados["VY"],dados["VZ"])
 
-def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,aceleracoes,nome):
+def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,rMomentaneo,aceleracoes,nome,dt):
     #convertendo para array caso ainda não seja
     massas=np.array(massas)
     trajetoria=np.array(trajetoria)
@@ -80,18 +80,19 @@ def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,acelera
     energia=np.array(energia)
     momAng=np.array(momAng)
     momLin=np.array(momLin)
-    r_min=np.array(r_min)
+    rMomentaneo=np.array(rMomentaneo)
     aceleracoes=np.array(aceleracoes)
+
 
     #para facilitar no treinamento da rede, salvo todos os arrays em um arquivo compactado
     np.savez_compressed(f"simulacoesArtificiais/simulacao3D{nome}.npz",
-                        massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,r_min=r_min,aceleracoes=aceleracoes)
+                        massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,rMomentaneo=rMomentaneo,aceleracoes=aceleracoes,dt=dt)
     print(f"Arquivo salvo. Tamanho aproximado: {trajetoria.nbytes/1e6:.1f} MB")
 
 #função para carregar os dados depois
 def carregarEstadosNPZ(nome):
-    dados=np.load(f"simulacoesArtificiais/simulacao3D{nome}.npz")
-    return dados['trajetoria']
+    dados=np.load(f"simulacoesArtificiais/simulacoesTeste/simulacao3D{nome}.npz")
+    return [dados['trajetoria'],dados['massas']]
 
 def yoshida4ordem(estado,dt,m1,m2,m3):#utiliza algumas vezes o velocity-verlet
     w1=1/(2-2**(1/3))
@@ -250,9 +251,6 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
 
 
 
-
-
-
 #============================== VARIÁVEIS DA SIMULAÇÃO =================================
 
 
@@ -308,10 +306,9 @@ erro_relativo_posicao=[]
 
 steps=400000
 N=0#VALORES PADRÃO
-dt=10#VALORES PADRÃO
-m1simulacao=0
-m2simulacao=0
-
+dt=0.00025#VALORES PADRÃO
+G=1
+epsilon=1e-6  #0  #1e-2
 num_simul=5
 j=0
 
@@ -320,24 +317,15 @@ j=0
 #flag = 2  -->  simulador HORIZONS 
 #flag = 3  -->  simulador HORIZONS 
 #flag = 4  -->  simulador HORIZONS JUPITER-IO-EUROPA
-flagTipoDeSimulacao=4
+#flag = 5  -->  verificar simulação gerada pelo DATASET
 
-
-
+flagTipoDeSimulacao=5
 
 
 
 #============================== SIMULAÇÃO =================================
 
-
-
-
-
 if flagTipoDeSimulacao==0:
-    dt=0.00025
-    G=1
-    epsilon=1e-6  #0  #1e-2
-
     while j<num_simul:
         rMomentaneo=[]
         momLin=[]
@@ -642,7 +630,7 @@ else:
         N=120 #passos entre uma verificação e outra - assim vai rodar mais passos sem ter que comparar os dados da HORIZONS
         dt=600/N
         steps = 721
-       
+    
         m1simulacao=mMarte
         m2simulacao=mFobos
         m3simulacao=mSol
@@ -664,22 +652,56 @@ else:
         
         steps = len(xt)
 
-    xt,yt,zt,vxt,vyt,vzt=xt*1e3,yt*1e3,zt*1e3,vxt*1e3,vyt*1e3,vzt*1e3
-    xl,yl,zl,vxl,vyl,vzl=xl*1e3,yl*1e3,zl*1e3,vxl*1e3,vyl*1e3,vzl*1e3
-    xs,ys,zs,vxs,vys,vzs=xs*1e3,ys*1e3,zs*1e3,vxs*1e3,vys*1e3,vzs*1e3
+    elif flagTipoDeSimulacao==5:
+        dt=0.00025
+        N=1
+        G=1
+        epsilon=1e-6
+        trajetoriaDataSet,massas=carregarEstadosNPZ(6) #NOME DA SIMULAÇÃO A SER TESTADA
+        xt=trajetoriaDataSet[:,0]
+        yt=trajetoriaDataSet[:,1]
+        zt=trajetoriaDataSet[:,2]
+        vxt=trajetoriaDataSet[:,3]
+        vyt=trajetoriaDataSet[:,4]
+        vzt=trajetoriaDataSet[:,5]
+        xl=trajetoriaDataSet[:,6]
+        yl=trajetoriaDataSet[:,7]
+        zl=trajetoriaDataSet[:,8]
+        vxl=trajetoriaDataSet[:,9]
+        vyl=trajetoriaDataSet[:,10]
+        vzl=trajetoriaDataSet[:,11]
+        xs=trajetoriaDataSet[:,12]
+        ys=trajetoriaDataSet[:,13]
+        zs=trajetoriaDataSet[:,14]
+        vxs=trajetoriaDataSet[:,15]
+        vys=trajetoriaDataSet[:,16]
+        vzs=trajetoriaDataSet[:,17]
+        m1simulacao,m2simulacao,m3simulacao=massas[0],massas[1],massas[2]
+        estado=trajetoriaDataSet[0, :18]
+        x1,y1,z1,vx1,vy1,vz1=xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0]
+        x2,y2,z2,vx2,vy2,vz2=xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]#isso substituiria a declaração dos valores de X e Y em estadoTerraLua... burrice minha, simplesmente
+        x3,y3,z3,vx3,vy3,vz3=xs[0],ys[0],zs[0],vxs[0],vys[0],vzs[0]
 
-    x1,y1,z1,vx1,vy1,vz1=xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0]
-    x2,y2,z2,vx2,vy2,vz2=xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]#isso substituiria a declaração dos valores de X e Y em estadoTerraLua... burrice minha, simplesmente
-    x3,y3,z3,vx3,vy3,vz3=xs[0],ys[0],zs[0],vxs[0],vys[0],vzs[0]
+        steps = len(xt)
 
-    R_cm0=(m1simulacao*np.array([x1,y1,z1])+m2simulacao*np.array([x2,y2,z2])+m3simulacao*np.array([x3,y3,z3]))/(m1simulacao+m2simulacao+m3simulacao)
-    V_cm0=(m1simulacao*np.array([vx1,vy1,vz1])+m2simulacao*np.array([vx2,vy2,vz2])+m3simulacao*np.array([vx3,vy3,vz3]))/(m1simulacao+m2simulacao+m3simulacao)
 
-    estado=np.array([
-        x1-R_cm0[0],y1-R_cm0[1],z1-R_cm0[2],vx1-V_cm0[0],vy1-V_cm0[1],vz1-V_cm0[2],
-        x2-R_cm0[0],y2-R_cm0[1],z2-R_cm0[2],vx2-V_cm0[0],vy2-V_cm0[1],vz2-V_cm0[2],
-        x3-R_cm0[0],y3-R_cm0[1],z3-R_cm0[2],vx3-V_cm0[0],vy3-V_cm0[1],vz3-V_cm0[2]
-    ])
+    if flagTipoDeSimulacao!=5:
+        xt,yt,zt,vxt,vyt,vzt=xt*1e3,yt*1e3,zt*1e3,vxt*1e3,vyt*1e3,vzt*1e3
+        xl,yl,zl,vxl,vyl,vzl=xl*1e3,yl*1e3,zl*1e3,vxl*1e3,vyl*1e3,vzl*1e3
+        xs,ys,zs,vxs,vys,vzs=xs*1e3,ys*1e3,zs*1e3,vxs*1e3,vys*1e3,vzs*1e3
+
+        x1,y1,z1,vx1,vy1,vz1=xt[0],yt[0],zt[0],vxt[0],vyt[0],vzt[0]
+        x2,y2,z2,vx2,vy2,vz2=xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]#isso substituiria a declaração dos valores de X e Y em estadoTerraLua... burrice minha, simplesmente
+        x3,y3,z3,vx3,vy3,vz3=xs[0],ys[0],zs[0],vxs[0],vys[0],vzs[0]
+
+        R_cm0=(m1simulacao*np.array([x1,y1,z1])+m2simulacao*np.array([x2,y2,z2])+m3simulacao*np.array([x3,y3,z3]))/(m1simulacao+m2simulacao+m3simulacao)
+        V_cm0=(m1simulacao*np.array([vx1,vy1,vz1])+m2simulacao*np.array([vx2,vy2,vz2])+m3simulacao*np.array([vx3,vy3,vz3]))/(m1simulacao+m2simulacao+m3simulacao)
+
+        estado=np.array([
+            x1-R_cm0[0],y1-R_cm0[1],z1-R_cm0[2],vx1-V_cm0[0],vy1-V_cm0[1],vz1-V_cm0[2],
+            x2-R_cm0[0],y2-R_cm0[1],z2-R_cm0[2],vx2-V_cm0[0],vy2-V_cm0[1],vz2-V_cm0[2],
+            x3-R_cm0[0],y3-R_cm0[1],z3-R_cm0[2],vx3-V_cm0[0],vy3-V_cm0[1],vz3-V_cm0[2]
+        ])
 
     passoAtual=0
     flag_colisao=0
@@ -687,20 +709,23 @@ else:
 
     for i in range(steps):
         passoAtual+=1
-
         estadoComTempo=np.append(estado.copy(),tAtual)
         trajetoria.append(estadoComTempo)
         tempoSimulacao.append(tAtual)
+        if flagTipoDeSimulacao==5:
+            estadoHorizons=trajetoriaDataSet[i,:18] #faço isso pois os dados do dataset já estão centrados no centro de massa
+        else:
+            #lembrando que o referencial do HORIZONS é diferente do referencial usado na simulação, pois no horizons usa-se o baricentro do sistema solar
+            R_cm_HOR=(m1simulacao*np.array([xt[i],yt[i],zt[i]])+m2simulacao*np.array([xl[i],yl[i],zl[i]])+m3simulacao*np.array([xs[i],ys[i],zs[i]]))/(m1simulacao+m2simulacao+m3simulacao)
+            V_cm_HOR=(m1simulacao*np.array([vxt[i],vyt[i],vzt[i]])+m2simulacao*np.array([vxl[i],vyl[i],vzl[i]])+m3simulacao*np.array([vxs[i],vys[i],vzs[i]]))/(m1simulacao+m2simulacao+m3simulacao)
+            estadoHorizons=[
+                xt[i]-R_cm_HOR[0],yt[i]-R_cm_HOR[1],zt[i]-R_cm_HOR[2],vxt[i]-V_cm_HOR[0],vyt[i]-V_cm_HOR[1],vzt[i]-V_cm_HOR[2],
+                xl[i]-R_cm_HOR[0],yl[i]-R_cm_HOR[1],zl[i]-R_cm_HOR[2],vxl[i]-V_cm_HOR[0],vyl[i]-V_cm_HOR[1],vzl[i]-V_cm_HOR[2],
+                xs[i]-R_cm_HOR[0],ys[i]-R_cm_HOR[1],zs[i]-R_cm_HOR[2],vxs[i]-V_cm_HOR[0],vys[i]-V_cm_HOR[1],vzs[i]-V_cm_HOR[2]
+            ]
+        
+        #
         energiaDoSistema.append(calculaEnergiaDoSistema(estado,m1simulacao,m2simulacao,m3simulacao))
-        #lembrando que o referencial do HORIZONS é diferente do referencial usado na simulação, pois no horizons usa-se o baricentro do sistema solar
-        R_cm_HOR=(m1simulacao*np.array([xt[i],yt[i],zt[i]])+m2simulacao*np.array([xl[i],yl[i],zl[i]])+m3simulacao*np.array([xs[i],ys[i],zs[i]]))/(m1simulacao+m2simulacao+m3simulacao)
-        V_cm_HOR=(m1simulacao*np.array([vxt[i],vyt[i],vzt[i]])+m2simulacao*np.array([vxl[i],vyl[i],vzl[i]])+m3simulacao*np.array([vxs[i],vys[i],vzs[i]]))/(m1simulacao+m2simulacao+m3simulacao)
-        estadoHorizons=[
-            xt[i]-R_cm_HOR[0],yt[i]-R_cm_HOR[1],zt[i]-R_cm_HOR[2],vxt[i]-V_cm_HOR[0],vyt[i]-V_cm_HOR[1],vzt[i]-V_cm_HOR[2],
-            xl[i]-R_cm_HOR[0],yl[i]-R_cm_HOR[1],zl[i]-R_cm_HOR[2],vxl[i]-V_cm_HOR[0],vyl[i]-V_cm_HOR[1],vzl[i]-V_cm_HOR[2],
-            xs[i]-R_cm_HOR[0],ys[i]-R_cm_HOR[1],zs[i]-R_cm_HOR[2],vxs[i]-V_cm_HOR[0],vys[i]-V_cm_HOR[1],vzs[i]-V_cm_HOR[2]
-        ]
-
         energiaHorizons.append(calculaEnergiaDoSistema(estadoHorizons,m1simulacao,m2simulacao,m3simulacao))
         diferencaEnergiaHorizonsXSimulacao.append(energiaHorizons[i]-energiaDoSistema[i])
 
@@ -750,6 +775,7 @@ else:
             case 2: tAtual+=3600
             case 3: tAtual+=600
             case 4: tAtual+=3600
+            case 5: tAtual+=dt
             case _: tAtual+=1
 
         #progresso da simulação em porcentagem 
