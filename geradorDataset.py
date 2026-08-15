@@ -216,7 +216,7 @@ def rodarSimulacao(seed):
     verificadorTamanho=0
 
     for i in range(steps):
-        tempoSimulacao.append(tAtual)
+        #tempoSimulacao.append(tAtual)
             
         #energiaDoSistema.append(calculaEnergiaDoSistema(estado,m1simulacao,m2simulacao,m3simulacao))
 
@@ -246,11 +246,16 @@ def rodarSimulacao(seed):
 
         if saverCounter%40==0:
             verificadorTamanho+=1
+            tempoSimulacao.append(tAtual)
             energiaDoSistema.append(calculaEnergiaDoSistema(estado,m1simulacao,m2simulacao,m3simulacao))
-            trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
+            #trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
+            trajetoria.append(np.append(estado.copy(),tAtual/40))#aqui o trajetoria é uma lista de arrays
             momLin.append(calculaMomLin(m1simulacao,m2simulacao,m3simulacao,v1,v2,v3))
             momAng.append(calculaMomAng(m1simulacao,m2simulacao,m3simulacao,r1,r2,r3,v1,v2,v3))
             rMomentaneo.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r2-r3))**2 + epsilon**2))
+
+        saverCounter+=1
+
         #momLin.append(calculaMomLin(m1simulacao,m2simulacao,m3simulacao,v1,v2,v3))
         #momAng.append(calculaMomAng(m1simulacao,m2simulacao,m3simulacao,r1,r2,r3,v1,v2,v3))
         #rMomentaneo.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r2-r3))**2 + epsilon**2))
