@@ -657,7 +657,7 @@ else:
         N=1
         G=1
         epsilon=1e-6
-        trajetoriaDataSet,massas=carregarEstadosNPZ(6) #NOME DA SIMULAÇÃO A SER TESTADA
+        trajetoriaDataSet,massas=carregarEstadosNPZ(7) #NOME DA SIMULAÇÃO A SER TESTADA
         xt=trajetoriaDataSet[:,0]
         yt=trajetoriaDataSet[:,1]
         zt=trajetoriaDataSet[:,2]
