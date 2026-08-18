@@ -9,41 +9,16 @@ import time
 def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt):
     #convertendo para array caso ainda não seja
     massas=np.array(massas)
-    #trajetoria1=np.array(trajetoria1)
-    #trajetoria2=np.array(trajetoria2)
-    #trajetoria3=np.array(trajetoria3)
     estado=estado
     tempo=np.array(tempo)
     energia=np.array(energia)
     momAng=np.array(momAng)
     momLin=np.array(momLin)
-    #rMomentaneo=np.array(rMomentaneo)
-    #aceleracoes=np.array(aceleracoes)
 
-    #salvarEstadosNPZ(massas,estado[0],estado[2],estado[4],tempoSimulacao,momAng,momLin)
-
-
-    #para facilitar no treinamento da rede, salvo todos os arrays em um arquivo compactado
     np.savez_compressed(f"simulacoesArtificiais/simulacoesTeste/simulacao3D_estruturaTeste{nome}.npz",
-                        #massas=massas,trajetoria1=trajetoria1,trajetoria2=trajetoria2,trajetoria3=trajetoria3,tempo=tempo,dt=dt)
                         massas=massas,estado=estado,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,dt=dt)
-    print(f"Arquivo salvo. Tamanho aproximado: {estado.nbytes/1024:.1f} KB")
+    print(f"Arquivo da seed {nome} salvo. Tamanho aproximado: {estado.nbytes/1024:.1f} KB")
 
-'''def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,rMomentaneo,aceleracoes,nome,dt):
-    #convertendo para array caso ainda não seja
-    massas=np.array(massas)
-    trajetoria=np.array(trajetoria)
-    tempo=np.array(tempo)
-    energia=np.array(energia)
-    momAng=np.array(momAng)
-    momLin=np.array(momLin)
-    rMomentaneo=np.array(rMomentaneo)
-    aceleracoes=np.array(aceleracoes)
-
-    #para facilitar no treinamento da rede, salvo todos os arrays em um arquivo compactado
-    np.savez_compressed(f"simulacoesArtificiais/simulacoesTeste/simulacao3D{nome}.npz",
-                        massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,rMomentaneo=rMomentaneo,aceleracoes=aceleracoes,dt=dt)
-    print(f"Arquivo salvo. Tamanho aproximado: {trajetoria.nbytes/1e6:.1f} MB")'''
 
 def yoshida4ordem(estado,dt,m1,m2,m3):#utiliza algumas vezes o velocity-verlet
     w1=1/(2-2**(1/3))
@@ -227,12 +202,6 @@ def rodarSimulacao(seed):
         r23=np.sqrt((np.linalg.norm(np.array([estado[12],estado[13],estado[14]])-np.array([estado[6],estado[7],estado[8]])))**2 + epsilon**2)
 
 
-        '''if min(r12,r13,r23)<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
-            print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO")
-            print("\nPASSO \n\n",i)
-            flag_colisao=1
-            break'''
-        
         #trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
 
         r1=estado[0:3]
@@ -242,8 +211,6 @@ def rodarSimulacao(seed):
         r3=estado[12:15]
         v3=estado[15:18]
 
-        '''a1,a2,a3=atualizaAceleracoes_posicoes(r1,r2,r3,m1simulacao,m2simulacao,m3simulacao)
-        aceleracoes.append(np.concatenate([a1,a2,a3]))'''
 
         if saverCounter%40==0:
             verificadorTamanho+=1
@@ -263,7 +230,7 @@ def rodarSimulacao(seed):
 
         if min(r12,r13,r23)<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
             print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO DE SEED: ", seed)
-            #print("\nPASSO \n\n",i)
+            print("\nPASSO",i)
             flag_colisao=1
             break
 
@@ -308,7 +275,7 @@ def carregarSeedsUsadas(caminho="seedsUsadas.txt"):
     if not os.path.exists(caminho):
         return set() #o que seria esse SET()?
     with open(caminho) as file:
-        return {int(linha.strip()) for linha in file if linha.strip()}
+        return {int(linha.strip()) for linha in file if linha.strip()} #retorna um vetor com as linhas salvas
 
 def proximoBlocoSeeds(qtdd,caminho="seedsUsadas.txt"):
     usadas=carregarSeedsUsadas(caminho)
@@ -353,24 +320,31 @@ epsilon=1e-6  #0  #1e-5
 
 
 #============================== SIMULAÇÃO =================================
-
+total=200
+numeroDeExistentes=len(carregarSeedsUsadas("seedsUsadas.txt"))
+#print("numero de linhas que o computador consegue ler", numeroDeExistentes)
 inicio=time.perf_counter()
 if __name__ == "__main__":
-    os.makedirs("simulacoesArtificiais/simulacoesTesteTeste", exist_ok=True)
-    NUM_SIMUL = 400
+    #NUM_SIMUL=100
+    NUM_SIMUL = (total-numeroDeExistentes)*7
+    while(total>numeroDeExistentes):
+        os.makedirs("simulacoesArtificiais/simulacoesTeste", exist_ok=True)
+        #NUM_SIMUL = 4
 
-    seedsDesteLote=proximoBlocoSeeds(NUM_SIMUL)
-    print("Gerando as seeds ", {seedsDesteLote[0]}, " até ", {seedsDesteLote[-1]})
+        seedsDesteLote=proximoBlocoSeeds(NUM_SIMUL)
+        print("Gerando as seeds ", {seedsDesteLote[0]}, " até ", {seedsDesteLote[-1]})
 
-    with Pool(processes=os.cpu_count()) as pool:
-        resultados = pool.map(rodarSimulacao, seedsDesteLote)
+        with Pool(processes=os.cpu_count()) as pool:
+            resultados = pool.map(rodarSimulacao, seedsDesteLote)
 
-    salvas    = [r for r in resultados if r is not None]
-    with open("seedsUsadas.txt","a") as file:
-        for seed in salvas: 
-            file.write(f"{seed}\n")
-
-    print(f"\nConcluído: {len(salvas)} salvas neste lote de ",NUM_SIMUL," simuações.")
+        salvas    = [r for r in resultados if r is not None]
+        with open("seedsUsadas.txt","a") as file:
+            for seed in salvas: 
+                file.write(f"{seed}\n")
+        numeroDeExistentes+=len(salvas)
+        print(f"\nConcluído: {len(salvas)} salvas neste lote de ",NUM_SIMUL," simuações.\nTOTAL DE SIMULAÇÕES GERADAS: ",numeroDeExistentes)
+        if len(salvas) <= NUM_SIMUL/7: NUM_SIMUL = (total-numeroDeExistentes)*7 #aqui é vezes sete a quantidade de simulações que ainda preciso pois é a proporção que encontrei de simulações geradas X simulações não colisionais ou hiperbólicas
+        #else: NUM_SIMUL = 4
 fim=time.perf_counter()
-total=fim-inicio
-print("tempo para gerar: ", total, " segundos")
+tempoTotal=fim-inicio
+print("tempo para gerar ",numeroDeExistentes," simulações: ", tempoTotal, " segundos")
