@@ -3,6 +3,7 @@ import numpy as np, matplotlib.pyplot as plt
 #from plotly import graph_objects as go
 from multiprocessing import Pool
 import os
+import time
 
 
 def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt):
@@ -26,7 +27,7 @@ def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt):
     np.savez_compressed(f"simulacoesArtificiais/simulacoesTeste/simulacao3D_estruturaTeste{nome}.npz",
                         #massas=massas,trajetoria1=trajetoria1,trajetoria2=trajetoria2,trajetoria3=trajetoria3,tempo=tempo,dt=dt)
                         massas=massas,estado=estado,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,dt=dt)
-    print(f"Arquivo salvo. Tamanho aproximado: {estado.nbytes/.33e3:.1f} KB")
+    print(f"Arquivo salvo. Tamanho aproximado: {estado.nbytes/1024:.1f} KB")
 
 '''def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,rMomentaneo,aceleracoes,nome,dt):
     #convertendo para array caso ainda não seja
@@ -241,8 +242,8 @@ def rodarSimulacao(seed):
         r3=estado[12:15]
         v3=estado[15:18]
 
-        a1,a2,a3=atualizaAceleracoes_posicoes(r1,r2,r3,m1simulacao,m2simulacao,m3simulacao)
-        aceleracoes.append(np.concatenate([a1,a2,a3]))
+        '''a1,a2,a3=atualizaAceleracoes_posicoes(r1,r2,r3,m1simulacao,m2simulacao,m3simulacao)
+        aceleracoes.append(np.concatenate([a1,a2,a3]))'''
 
         if saverCounter%40==0:
             verificadorTamanho+=1
@@ -261,8 +262,8 @@ def rodarSimulacao(seed):
         #rMomentaneo.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r2-r3))**2 + epsilon**2))
 
         if min(r12,r13,r23)<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
-            print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO")
-            print("\nPASSO \n\n",i)
+            print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO DE SEED: ", seed)
+            #print("\nPASSO \n\n",i)
             flag_colisao=1
             break
 
@@ -302,6 +303,19 @@ def converter_P_para_V(m1,m2,m3,estado): #usado após ser salvo vetor de estados
     estadoAux[3] /= m2
     estadoAux[5] /= m3
     return estadoAux
+
+def carregarSeedsUsadas(caminho="seedsUsadas.txt"):
+    if not os.path.exists(caminho):
+        return set() #o que seria esse SET()?
+    with open(caminho) as file:
+        return {int(linha.strip()) for linha in file if linha.strip()}
+
+def proximoBlocoSeeds(qtdd,caminho="seedsUsadas.txt"):
+    usadas=carregarSeedsUsadas(caminho)
+    proximo=(max(usadas)+1) if usadas else 0
+    return list(range(proximo, proximo+qtdd))
+
+
 #============================== VARIÁVEIS DA SIMULAÇÃO =================================
 
 estado0=np.array([
@@ -340,14 +354,23 @@ epsilon=1e-6  #0  #1e-5
 
 #============================== SIMULAÇÃO =================================
 
-
+inicio=time.perf_counter()
 if __name__ == "__main__":
-    os.makedirs("simulacoesArtificiais/simulacoesTeste", exist_ok=True)
-    NUM_SIMUL = 3
+    os.makedirs("simulacoesArtificiais/simulacoesTesteTeste", exist_ok=True)
+    NUM_SIMUL = 400
+
+    seedsDesteLote=proximoBlocoSeeds(NUM_SIMUL)
+    print("Gerando as seeds ", {seedsDesteLote[0]}, " até ", {seedsDesteLote[-1]})
 
     with Pool(processes=os.cpu_count()) as pool:
-        resultados = pool.map(rodarSimulacao, range(NUM_SIMUL))
+        resultados = pool.map(rodarSimulacao, seedsDesteLote)
 
     salvas    = [r for r in resultados if r is not None]
-    descartadas = [r for r in resultados if r is None]
-    print(f"\nConcluído: {len(salvas)} salvas, {len(descartadas)} descartadas.")
+    with open("seedsUsadas.txt","a") as file:
+        for seed in salvas: 
+            file.write(f"{seed}\n")
+
+    print(f"\nConcluído: {len(salvas)} salvas neste lote de ",NUM_SIMUL," simuações.")
+fim=time.perf_counter()
+total=fim-inicio
+print("tempo para gerar: ", total, " segundos")
