@@ -15,7 +15,7 @@ def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt):
     momAng=np.array(momAng)
     momLin=np.array(momLin)
 
-    np.savez_compressed(f"simulacoesArtificiais/simulacoesTeste/simulacao3D_estruturaTeste{nome}.npz",
+    np.savez_compressed(f"simulacoesArtificiais2C/simulacoesTeste/simulacao3D_estruturaTeste2C{nome}.npz",
                         massas=massas,estado=estado,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,dt=dt)
     print(f"Arquivo da seed {nome} salvo. Tamanho aproximado: {estado.nbytes/1024:.1f} KB")
 
@@ -40,7 +40,7 @@ def yoshida4ordem(estado,dt,m1,m2):#utiliza algumas vezes o velocity-verlet
     r1+=c1*dt*v1
     r2+=c1*dt*v2
 
-    a1,a2,a3=atualizaAceleracoes_posicoes(r1,r2,m1,m2)
+    a1,a2=atualizaAceleracoes_posicoes(r1,r2,m1,m2)
     #KICK
     v1+=d1*dt*a1
     v2+=d1*dt*a2
@@ -61,7 +61,7 @@ def yoshida4ordem(estado,dt,m1,m2):#utiliza algumas vezes o velocity-verlet
     r1+=c3*dt*v1
     r2+=c3*dt*v2
 
-    a1,a2,a3=atualizaAceleracoes_posicoes(r1,r2,m1,m2)
+    a1,a2=atualizaAceleracoes_posicoes(r1,r2,m1,m2)
     #KICK
     v1+=d3*dt*a1
     v2+=d3*dt*a2
@@ -150,7 +150,6 @@ def rodarSimulacao(seed):
 
     v1-=V_cm
     v2-=V_cm
-    v3-=V_cm
 
     #colocando o centro de massa do sistema na origem da simulação, para facilitar o treinamento da rede (evita que ela tenha que aprender o DRIFT - o centro de massa estar em certa posição não afeta na evolução da simulação)
     R_cm=(m1simulacao*r1+m2simulacao*r2)/(m1simulacao+m2simulacao)
@@ -189,10 +188,11 @@ def rodarSimulacao(seed):
             tempoSimulacao.append(tAtual)
             energiaDoSistema.append(calculaEnergiaDoSistema(estado,m1simulacao,m2simulacao))
             #trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
-            trajetoria.append(np.append(estado.copy(),tAtual/40))#aqui o trajetoria é uma lista de arrays
+            trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
             momLin.append(calculaMomLin(m1simulacao,m2simulacao,v1,v2))
             momAng.append(calculaMomAng(m1simulacao,m2simulacao,r1,r2,v1,v2))
             #rMomentaneo.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2))
+            #print("ESSA É O STEP: ",i)
 
         saverCounter+=1
 
@@ -200,7 +200,7 @@ def rodarSimulacao(seed):
         #momAng.append(calculaMomAng(m1simulacao,m2simulacao,m3simulacao,r1,r2,r3,v1,v2,v3))
         #rMomentaneo.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r2-r3))**2 + epsilon**2))
 
-        if min(r12)<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
+        if r12<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
             print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO DE SEED: ", seed)
             print("\nPASSO",i)
             flag_colisao=1
@@ -241,13 +241,13 @@ def converter_P_para_V(m1,m2,estado): #usado após ser salvo vetor de estados pa
     estadoAux[3] /= m2
     return estadoAux
 
-def carregarSeedsUsadas(caminho="seedsUsadas.txt"):
+def carregarSeedsUsadas(caminho="seedsUsadas2C.txt"):
     if not os.path.exists(caminho):
         return set() #o que seria esse SET()?
     with open(caminho) as file:
         return {int(linha.strip()) for linha in file if linha.strip()} #retorna um vetor com as linhas salvas
 
-def proximoBlocoSeeds(qtdd,caminho="seedsUsadas.txt"):
+def proximoBlocoSeeds(qtdd,caminho="seedsUsadas2C.txt"):
     usadas=carregarSeedsUsadas(caminho)
     proximo=(max(usadas)+1) if usadas else 0
     return list(range(proximo, proximo+qtdd))
@@ -289,15 +289,15 @@ epsilon=1e-6  #0  #1e-5
 
 
 #============================== SIMULAÇÃO =================================
-total=210
-numeroDeExistentes=len(carregarSeedsUsadas("seedsUsadas.txt"))
+total=5
+numeroDeExistentes=len(carregarSeedsUsadas("seedsUsadas2C.txt"))
 #print("numero de linhas que o computador consegue ler", numeroDeExistentes)
-inicio=time.perf_counter()
+#inicio=time.perf_counter()
 if __name__ == "__main__":
     #NUM_SIMUL=100
     NUM_SIMUL = (total-numeroDeExistentes)*7
     while(total>numeroDeExistentes):
-        os.makedirs("simulacoesArtificiais/simulacoesTeste", exist_ok=True)
+        os.makedirs("simulacoesArtificiais2C/simulacoesTeste", exist_ok=True)
         #NUM_SIMUL = 4
 
         seedsDesteLote=proximoBlocoSeeds(NUM_SIMUL)
@@ -307,13 +307,13 @@ if __name__ == "__main__":
             resultados = pool.map(rodarSimulacao, seedsDesteLote)
 
         salvas    = [r for r in resultados if r is not None]
-        with open("seedsUsadas.txt","a") as file:
+        with open("seedsUsadas2C.txt","a") as file:
             for seed in salvas: 
                 file.write(f"{seed}\n")
         numeroDeExistentes+=len(salvas)
         print(f"\nConcluído: {len(salvas)} salvas neste lote de ",NUM_SIMUL," simuações.\nTOTAL DE SIMULAÇÕES GERADAS: ",numeroDeExistentes)
         if len(salvas) <= NUM_SIMUL/7: NUM_SIMUL = (total-numeroDeExistentes)*7 #aqui é vezes sete a quantidade de simulações que ainda preciso pois é a proporção que encontrei de simulações geradas X simulações não colisionais ou hiperbólicas
         #else: NUM_SIMUL = 4
-fim=time.perf_counter()
-tempoTotal=fim-inicio
-print("tempo para gerar ",numeroDeExistentes," simulações: ", tempoTotal, " segundos")
+#fim=time.perf_counter()
+#tempoTotal=fim-inicio
+#print("tempo para gerar ",numeroDeExistentes," simulações válidas: ", tempoTotal, " segundos")
