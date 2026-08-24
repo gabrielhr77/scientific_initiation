@@ -6,7 +6,7 @@ import os
 import time
 
 
-def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt):
+def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt,motivoTermino):
     #convertendo para array caso ainda não seja
     massas=np.array(massas)
     estado=estado
@@ -14,9 +14,10 @@ def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt):
     energia=np.array(energia)
     momAng=np.array(momAng)
     momLin=np.array(momLin)
+    motivoTermino=motivoTermino
 
     np.savez_compressed(f"simulacoesArtificiais/simulacoesTeste/simulacao3D_estruturaTeste{nome}.npz",
-                        massas=massas,estado=estado,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,dt=dt)
+                        massas=massas,estado=estado,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,dt=dt,motivoTermino=motivoTermino)
     print(f"Arquivo da seed {nome} salvo. Tamanho aproximado: {estado.nbytes/1024:.1f} KB")
 
 
@@ -138,6 +139,7 @@ def rodarSimulacao(seed):
     aceleracoes=[]
     trajetoria=[]
     energiaDoSistema=[]
+    tempoSimulacao=[]
     tAtual=0.0
     flag_colisao=0
 
@@ -187,9 +189,20 @@ def rodarSimulacao(seed):
         r3[0],r3[1],r3[2],v3[0],v3[1],v3[2]
     ])
 
-    saverCounter=0
-
     verificadorTamanho=0
+    saverCounter=0
+    margemDeSeguranca=1000  #em steps
+    #motivoTermino=0 --> simulação completa     --> salvando ela inteira
+    #motivoTermino=1 --> simulação com colisão  --> salvando até antes da margem de segurança
+    #motivoTermino=2 --> simulação hiperbólica  --> salvando ela inteira
+    motivoTermino=0
+
+
+    houveHiperbolismo=energiaDoSistema[-1]>0 if energiaDoSistema else False #testa primeiro "energiaDoSistema", que se nao for vazio retorna true, depois testa "energiaDoSistema[-1]>0", se der verdadeiro, fica como TRUE, senão fica FALSE
+
+    if houveHiperbolismo:
+        print(f"\nSISTEMA HIPERBÓLICO DETECTADO - seed {seed}")
+        motivoTermino=2
 
     for i in range(steps):
         #tempoSimulacao.append(tAtual)
@@ -201,7 +214,22 @@ def rodarSimulacao(seed):
         r13=np.sqrt((np.linalg.norm(np.array([estado[12],estado[13],estado[14]])-np.array([estado[0],estado[1],estado[2]])))**2 + epsilon**2)
         r23=np.sqrt((np.linalg.norm(np.array([estado[12],estado[13],estado[14]])-np.array([estado[6],estado[7],estado[8]])))**2 + epsilon**2)
 
+        houveProximidade=min(r12,r13,r23)<1
 
+        if houveProximidade:
+            print(f"\nENCONTRO DETECTADO - seed {seed} - no passo {i}")
+            motivoTermino=1
+            break
+        '''houveHiperbolismo=energiaDoSistema[-1]>0 if energiaDoSistema else False #testa primeiro "energiaDoSistema", que se nao for vazio retorna true, depois testa "energiaDoSistema[-1]>0", se der verdadeiro, fica como TRUE, senão fica FALSE
+
+        if houveProximidade:
+            print(f"\nENCONTRO DETECTADO - seed {seed} - no passo {i}")
+            motivoTermino=1
+            break
+        elif houveHiperbolismo:
+            print(f"\nSISTEMA HIPERBÓLICO DETECTADO - seed {seed} - passo {i}")
+            motivoTermino=2
+            #break'''
         #trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
 
         r1=estado[0:3]
@@ -228,11 +256,11 @@ def rodarSimulacao(seed):
         #momAng.append(calculaMomAng(m1simulacao,m2simulacao,m3simulacao,r1,r2,r3,v1,v2,v3))
         #rMomentaneo.append(np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)+np.sqrt((np.linalg.norm(r2-r3))**2 + epsilon**2))
 
-        if min(r12,r13,r23)<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
+        '''if min(r12,r13,r23)<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
             print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO DE SEED: ", seed)
             print("\nPASSO",i)
             flag_colisao=1
-            break
+            break'''
 
 
         #progresso da simulação em porcentagem 
@@ -251,9 +279,14 @@ def rodarSimulacao(seed):
         energiaDoSistema=np.array(energiaDoSistema)
 
         #salvarEstadosNPZ(massas,trajetoria,tempoSimulacao,energiaDoSistema,momAng,momLin,rMomentaneo,aceleracoes,seed,dt) #ESTOU SALVANDO TUDO ISSO, PORÉM EU PRECISO APENAS SALVAR AS POSIÇÕES NA TRAJETÓRIA (que contém as posições e velocidades), MASSAS E MOMENTOS
-        
-        salvarEstadosNPZ(massas,trajetoria,tempoSimulacao,energiaDoSistema,momAng,momLin,seed,dt)
-        print("Quantidade de pontos salvos: ", verificadorTamanho)
+        if motivoTermino == 1 and len(trajetoria) > margemDeSeguranca:
+            trajetoria=trajetoria[:-margemDeSeguranca]
+            tempoSimulacao=tempoSimulacao[:-margemDeSeguranca]
+            energiaDoSistema=energiaDoSistema[:-margemDeSeguranca]
+            momAng=momAng[:-margemDeSeguranca]
+            momLin=momLin[:-margemDeSeguranca]
+        salvarEstadosNPZ(massas,trajetoria,tempoSimulacao,energiaDoSistema,momAng,momLin,seed,dt,motivoTermino)
+        print("Quantidade de pontos salvos: ", verificadorTamanho-margemDeSeguranca/40)
         print("steps totais", steps)
         return seed
 
@@ -320,13 +353,13 @@ epsilon=1e-6  #0  #1e-5
 
 
 #============================== SIMULAÇÃO =================================
-total=200
+total=30
 numeroDeExistentes=len(carregarSeedsUsadas("seedsUsadas.txt"))
 #print("numero de linhas que o computador consegue ler", numeroDeExistentes)
 inicio=time.perf_counter()
 if __name__ == "__main__":
     #NUM_SIMUL=100
-    NUM_SIMUL = (total-numeroDeExistentes)*7
+    NUM_SIMUL = (total-numeroDeExistentes)#*7
     while(total>numeroDeExistentes):
         os.makedirs("simulacoesArtificiais/simulacoesTeste", exist_ok=True)
         #NUM_SIMUL = 4
