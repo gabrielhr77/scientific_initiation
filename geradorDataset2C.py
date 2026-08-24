@@ -2,17 +2,6 @@ import numpy as np, matplotlib.pyplot as plt
 from multiprocessing import Pool
 import os
 import time
-#AQUI É O PONTO INICIAL DAS ALTERAÇÕES PARA A V2.0
-
-
-
-
-
-
-
-
-
-
 
 
 def salvarEstadosNPZ(massas,estado,tempo,energia,momAng,momLin,nome,dt,motivoTermino):
@@ -131,8 +120,6 @@ def rodarSimulacao(seed):
     flag_colisao=0
 
 
-
-
     x1,y1,z1,vx1,vy1,vz1,\
     x2,y2,z2,vx2,vy2,vz2=estado0
 
@@ -147,7 +134,6 @@ def rodarSimulacao(seed):
     ]])
     x1,y1,z1,vx1,vy1,vz1,x2,y2,z2,vx2,vy2,vz2=estadoAleatorio
 
-    #mantendo o momento linear do sistema, forçadamente, em ZERO        P_total=m1simulacao*v1+m2simulacao*v2+m3simulacao*v3       
     r1=np.array([x1,y1,z1])
     r2=np.array([x2,y2,z2])
     v1=np.array([vx1,vy1,vz1])
@@ -171,7 +157,7 @@ def rodarSimulacao(seed):
 
     saverCounter=0
     verificadorTamanho=0
-    margemDeSeguranca=5000  #em steps
+    margemDeSeguranca=100  #em steps fica 40*100 (uma vez que estou salvando uma vez a cada 40 passos dados)
 
     #motivoTermino=0 --> simulação completa     --> salvando ela inteira
     #motivoTermino=1 --> simulação com colisão  --> salvando até antes da margem de segurança
@@ -179,10 +165,9 @@ def rodarSimulacao(seed):
     motivoTermino=0
 
     for i in range(steps):
-        #PARA EVITAR COLISÕES, QUE NÃO É O OBJETIVO DA REDE COMPREENDER, COLOCO ESSE GATILHO PARA EVITAR COLOCAR OS DADOS DA TRAJETÓRIA NO DATASET
+        #PARA EVITAR COLISÕES, QUE NÃO É O OBJETIVO DA REDE COMPREENDER, COLOCO ESSE GATILHO PARA EVITAR COLOCAR OS DADOS DA TRAJETÓRIA NO DATASET --> agora deixamos todas as simulações
         r12=np.sqrt((np.linalg.norm(np.array([estado[6],estado[7],estado[8]])-np.array([estado[0],estado[1],estado[2]])))**2 + epsilon**2)
 
-        #houveProximidade=min(r12,r13,r23)<1
         houveProximidade=r12<1
         houveHiperbolismo=energiaDoSistema[-1]>0 if energiaDoSistema else False #testa primeiro "energiaDoSistema", que se nao for vazio retorna true, depois testa "energiaDoSistema[-1]>0", se der verdadeiro, fica como TRUE, senão fica FALSE
 
@@ -193,13 +178,11 @@ def rodarSimulacao(seed):
         elif houveHiperbolismo:
             print(f"\nSISTEMA HIPERBÓLICO DETECTADO - seed {seed} - passo {i}")
             motivoTermino=2
-            #break
 
         r1=estado[0:3]
         v1=estado[3:6]
         r2=estado[6:9]
         v2=estado[9:12]
-
 
         if saverCounter%40==0:
             verificadorTamanho+=1
@@ -208,34 +191,25 @@ def rodarSimulacao(seed):
             trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
             momLin.append(calculaMomLin(m1simulacao,m2simulacao,v1,v2))
             momAng.append(calculaMomAng(m1simulacao,m2simulacao,r1,r2,v1,v2))
+            if energiaDoSistema[-1]>0:
+                motivoTermino=2
 
         saverCounter+=1
-
-        
-
-        '''if r12<1 or energiaDoSistema[-1]>0: #o [-1] pega o último elemento da lista, que seria o mais atual cálculo da energia do sistema
-            print("\nCOLISAO DETECTADA ou SISTEMA HIPERBÓLICO, CANCELANDO SIMULAÇÃO DE SEED: ", seed)
-            print("\nPASSO",i)
-            flag_colisao=1
-            break'''
-
 
         #progresso da simulação em porcentagem 
         if i % 10000 == 0 and i > 0:
             print(f"Passo {i}/{steps} ({100*i/steps:.1f}%)")
-        
+
         #=============================================EVOLUÇÃO DO SISTEMA=============================================
         estado=yoshida4ordem(estado,dt,m1simulacao,m2simulacao)
         tAtual+=dt
         
-    #salva os dados da simulação se não houve colisão
+    #salva os dados da simulação se não houve colisão --> agora salva
     if(flag_colisao==0):  
         massas=[m1simulacao,m2simulacao]
         
         trajetoria=np.array(trajetoria)#aqui o trajetoria deixa de ser uma lista de arrays para ser uma matriz 2D, melhor para fazer cálculos
         energiaDoSistema=np.array(energiaDoSistema)
-
-        #salvarEstadosNPZ(massas,trajetoria,tempoSimulacao,energiaDoSistema,momAng,momLin,rMomentaneo,aceleracoes,seed,dt) #ESTOU SALVANDO TUDO ISSO, PORÉM EU PRECISO APENAS SALVAR AS POSIÇÕES NA TRAJETÓRIA (que contém as posições e velocidades), MASSAS E MOMENTOS
         
         if motivoTermino == 1 and len(trajetoria) > margemDeSeguranca:
             trajetoria=trajetoria[:-margemDeSeguranca]
@@ -251,14 +225,14 @@ def rodarSimulacao(seed):
 
 def converter_V_para_P(m1,m2,estado): #usado após ser gerado pelo yoshida, no loop
     estadoAux=estado.copy()
-    estadoAux[1] *= m1
-    estadoAux[3] *= m2
+    estadoAux[3:6] *= m1
+    estadoAux[9:12] *= m2
     return estadoAux
 
 def converter_P_para_V(m1,m2,estado): #usado após ser salvo vetor de estados para retornar para velocidades para manter o cálculo da LOSS de maneira correta
     estadoAux=estado.copy()
-    estadoAux[1] /= m1
-    estadoAux[3] /= m2
+    estadoAux[3:6] /= m1
+    estadoAux[9:12] /= m2
     return estadoAux
 
 def carregarSeedsUsadas(caminho="seedsUsadas2C.txt"):
@@ -271,6 +245,7 @@ def proximoBlocoSeeds(qtdd,caminho="seedsUsadas2C.txt"):
     usadas=carregarSeedsUsadas(caminho)
     proximo=(max(usadas)+1) if usadas else 0
     return list(range(proximo, proximo+qtdd))
+
 
 #============================== VARIÁVEIS DA SIMULAÇÃO =================================
 estado0=np.array([
@@ -289,7 +264,6 @@ momLinSistema=[]
 momAngSistema=[]
 momLinHorizons=[]
 momAngHorizons=[]
-aceleracoes=[]
 
 diferencaEnergiaHorizonsXSimulacao=[]
 diferencaMomLinHorizonsXSimulacao=[]
@@ -304,8 +278,6 @@ G=1
 epsilon=1e-6  #0  #1e-5
 
 
-
-
 #============================== SIMULAÇÃO =================================
 total=20
 numeroDeExistentes=len(carregarSeedsUsadas("seedsUsadas2C.txt"))
@@ -313,7 +285,6 @@ if __name__ == "__main__":
     NUM_SIMUL = (total-numeroDeExistentes)#*7
     while(total>numeroDeExistentes):
         os.makedirs("simulacoesArtificiais2C/simulacoesTeste", exist_ok=True)
-        #NUM_SIMUL = 4
 
         seedsDesteLote=proximoBlocoSeeds(NUM_SIMUL)
         print("Gerando as seeds ", {seedsDesteLote[0]}, " até ", {seedsDesteLote[-1]})
@@ -327,4 +298,4 @@ if __name__ == "__main__":
                 file.write(f"{seed}\n")
         numeroDeExistentes+=len(salvas)
         print(f"\nConcluído: {len(salvas)} salvas neste lote de ",NUM_SIMUL," simuações.\nTOTAL DE SIMULAÇÕES GERADAS: ",numeroDeExistentes)
-        if len(salvas) <= NUM_SIMUL/7: NUM_SIMUL = (total-numeroDeExistentes)*7 #aqui é vezes sete a quantidade de simulações que ainda preciso pois é a proporção que encontrei de simulações geradas X simulações não colisionais ou hiperbólicas
+        #if len(salvas) <= NUM_SIMUL/7: NUM_SIMUL = (total-numeroDeExistentes)*7 #aqui é vezes sete a quantidade de simulações que ainda preciso pois é a proporção que encontrei de simulações geradas X simulações não colisionais ou hiperbólicas
