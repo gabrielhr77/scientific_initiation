@@ -95,11 +95,12 @@ def rodarSimulacao3Corpos(seed):
             verificadorTamanho+=1
             tempoSimulacao.append(tAtual)
             energiaDoSistema.append(calculaEnergiaDoSistema3Corpos(estado,m1simulacao,m2simulacao,m3simulacao))
-            trajetoria.append(np.append(estado.copy(),tAtual))#aqui o trajetoria é uma lista de arrays
+            trajetoria.append(np.append(estado.copy(),tAtual))#gaqui o trajetoria é uma lista de arrays
             momLin.append(calculaMomLin3Corpos(m1simulacao,m2simulacao,m3simulacao,v1,v2,v3))
             momAng.append(calculaMomAng3Corpos(m1simulacao,m2simulacao,m3simulacao,r1,r2,r3,v1,v2,v3))
             if energiaDoSistema[-1]>0:
                 motivoTermino=2
+                break
         saverCounter+=1
 
         #progresso da simulação em porcentagem 
@@ -111,7 +112,7 @@ def rodarSimulacao3Corpos(seed):
         tAtual+=dt
 
     #salva os dados da simulação se não houve colisão
-    if(flag_colisao==0):  
+    if(flag_colisao==0 and motivoTermino!=2):       #aqui só vai salvar as simulações que não forem hiperbólicas e as que houve colisão até MARGEM_SEGURANCA antes da colisão
         massas=[m1simulacao,m2simulacao,m3simulacao]
         
         trajetoria=np.array(trajetoria)#aqui o trajetoria deixa de ser uma lista de arrays para ser uma matriz 2D, melhor para fazer cálculos
@@ -258,7 +259,7 @@ erro_relativo_posicao=[]
 #aqui a seleção indica qual dataset será gerado
 #selecao = 0  -->   3 CORPOS
 #selecao = 1  -->   2 CORPOS
-selecao=1
+selecao=0
 
 if selecao==0: 
     total=TOTALSIMULACOES_3_CORPOS
@@ -279,17 +280,28 @@ if __name__ == "__main__":
 
         NUM_SIMUL = (total-numeroDeExistentes)
         seedsDesteLote=proximoBlocoSeeds(NUM_SIMUL,pastaSeeds)
+        #print(seedsDesteLote)
         print("Gerando as seeds ", {seedsDesteLote[0]}, " até ", {seedsDesteLote[-1]})
 
         with Pool(processes=os.cpu_count()) as pool:
             resultados = pool.map(funcaoSimulacao, seedsDesteLote)
 
+        while resultados==[None]*NUM_SIMUL:
+            print("NUM_SIM antes: ",NUM_SIMUL)
+            NUM_SIMUL*=2
+            seedsDesteLote=proximoBlocoSeeds(NUM_SIMUL,pastaSeeds)
+            print("Gerando as seeds ", {seedsDesteLote[0]}, " até ", {seedsDesteLote[-1]})
+            print("NUM_SIM depois: ",NUM_SIMUL)
+            with Pool(processes=os.cpu_count()) as pool:
+                resultados = pool.map(funcaoSimulacao, seedsDesteLote)
+
         salvas    = [r for r in resultados if r is not None]
+        print(salvas)
         with open(pastaSeeds,"a") as file:
             for seed in salvas: 
                 file.write(f"{seed}\n")
         numeroDeExistentes+=len(salvas)
+        #print("NUMERO DE SEEDS EXISTENTES",numeroDeExistentes,"\nTOTAL PEDIDO: ",total,"\nQUANTAS FALTAM: ",NUM_SIMUL)
+        #print("SEED INICIAL DA PROXIMA JANELA: ",seedsDesteLote[0])
         #print(f"\nConcluído: {len(salvas)} salvas neste lote de ",NUM_SIMUL," simuações.\nTOTAL DE SIMULAÇÕES GERADAS: ",numeroDeExistentes)
         #if len(salvas) <= NUM_SIMUL/7: NUM_SIMUL = (total-numeroDeExistentes)*7 #aqui é vezes sete a quantidade de simulações que ainda preciso pois é a proporção que encontrei de simulações geradas X simulações não colisionais ou hiperbólicas
-
-
