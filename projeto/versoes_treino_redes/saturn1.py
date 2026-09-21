@@ -66,7 +66,7 @@ class JanelaComHorizonte(Dataset):
         self.indices=[]
         for idTraj,traj in enumerate(self.trajetorias):        #enumerate --> mantém uma tupla (id, valor) ao iterar sobre um iterável como um vetor ou list
             nAmostras=len(traj)-comprimentoTotal+1
-            pulo=10                                             #tenho que usar isso pois estava gerando muitas janelas com valores identicos nelas (se a primeira tinha do 1 ao 15, a segunda tinha do 2 ao 16, sendo que cada passo é um incremento pequeno para chegar ao outro, não mudando quase nada entre dois passos), por isso adicionei um pulo para ter menos janelas
+            pulo=30                                             #tenho que usar isso pois estava gerando muitas janelas com valores identicos nelas (se a primeira tinha do 1 ao 15, a segunda tinha do 2 ao 16, sendo que cada passo é um incremento pequeno para chegar ao outro, não mudando quase nada entre dois passos), por isso adicionei um pulo para ter menos janelas
             for i in range(0, max(nAmostras,0), pulo):
                 self.indices.append((idTraj,i))
 
@@ -91,7 +91,7 @@ class JanelaProximoEstado(Dataset):
         self.indices=[]
         for idTraj,traj in enumerate(self.trajetorias):
             nAmostras=len(traj)-tamanhoJanela
-            pulo=10                                             #tenho que usar isso pois estava gerando muitas janelas com valores identicos nelas (se a primeira tinha do 1 ao 15, a segunda tinha do 2 ao 16, sendo que cada passo é um incremento pequeno para chegar ao outro, não mudando quase nada entre dois passos), por isso adicionei um pulo para ter menos janelas
+            pulo=30                                             #tenho que usar isso pois estava gerando muitas janelas com valores identicos nelas (se a primeira tinha do 1 ao 15, a segunda tinha do 2 ao 16, sendo que cada passo é um incremento pequeno para chegar ao outro, não mudando quase nada entre dois passos), por isso adicionei um pulo para ter menos janelas
             for i in range(0, max(nAmostras,0), pulo):
                 self.indices.append((idTraj,i))
 
@@ -374,7 +374,8 @@ def horizontePrevisibilidade(real, previsto):
     horizonte = acimaDoLimiar[0] if len(acimaDoLimiar) > 0 else len(erro)
     return horizonte, escalaReferencia
 
-def probabilidadeTeacherForcing(epoca,k=5.0):
+#def probabilidadeTeacherForcing(epoca,k=5.0):
+def probabilidadeTeacherForcing(epoca,k=15.0):
     # fica proximo de 1 no inicio do treino, mas decresce rápido no final, 
     # fazendo com que a rede, após já estar mais precisa, possa aprender como seus pequenos erros podem ser consertados
     # o K é a velocidade de decaimento
@@ -401,7 +402,13 @@ def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,med
 
     fig, eixos = plt.subplots(4, 3, figsize=(18, 20))
     eixos = eixos.flatten()
-
+    for idx in range(nTraj):
+        trajReal=trajetoriasValidacao[idx]
+        massaReal=massasValidacao[idx]       
+        nPassos=min(nPassosDoRollout, len(trajReal) - tamanhoJanela)
+        if nPassos <= 0:
+            print(f"[PULANDO] Traj {idx}: apenas {len(trajReal)} passos (< {tamanhoJanela})")
+            continue
     horizontes =[]
     errosMedios=[]
     for idx in range(nTraj):
@@ -460,8 +467,8 @@ if __name__ == "__main__":
     N_CAMADAS = 6
     DIM_FEEDFORWARD = 256
     DROPOUT = 0.1
-    HORIZONTE_MAX = 5
-    N_EPOCAS = 10
+    HORIZONTE_MAX = 80
+    N_EPOCAS = 30
     DT = 0.00025                     
     PESOS_LOSS = {
         "estado": 1.0,
@@ -479,6 +486,11 @@ if __name__ == "__main__":
     nValidacao = max(1, len(trajetorias) // 5)
     trajetoriasTreino, trajetoriasValidacao = trajetorias[nValidacao:], trajetorias[:nValidacao]
     massasTreino, massasValidacao = massas[nValidacao:], massas[:nValidacao]
+
+    print("Total de trajetórias carregadas:", len(trajetorias))
+    print("Trajetórias de treino:", len(trajetoriasTreino))
+    print("Trajetórias de validação:", len(trajetoriasValidacao))
+
 
     media, desvio = calcularNormalizacao(trajetoriasTreino)
     mediaMassa = np.mean(massasTreino, axis=0)
@@ -505,7 +517,7 @@ if __name__ == "__main__":
     otimizador = t.optim.Adam(modelo.parameters(), lr=1e-3)     #ATUALIZA OS PARÂMETROS BASEADO NOS GRADIENTES CALCULADOS PELO .backward()
 
     #vou adicionar um scheduler de redução de learning rate de acordo com a função COSSENO, não reativo aos platôs, mas sim uma redução pequena no inicio e no fim e grande no meio
-    scheduler=t.optim.lr_scheduler.CossineAnnealignLR(otimizador,T_max=N_EPOCAS)
+    scheduler=t.optim.lr_scheduler.CosineAnnealingLR(otimizador,T_max=N_EPOCAS)
 
     ultimoCheckpoint,epocaInicial=acharUltimoCheckpoint(".")
     if ultimoCheckpoint is not None:
@@ -578,4 +590,4 @@ if __name__ == "__main__":
     print("Modelo salvo em modelo3corpos.pt")
     
     print("\n--- Rollout autoregressivo ---")
-    horizontes, errosMedios = avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,TAMANHO_JANELA,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12, nPassosDoRollout=300)
+    horizontes, errosMedios = avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,TAMANHO_JANELA,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12, nPassosDoRollout=10000)
