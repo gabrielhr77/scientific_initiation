@@ -28,7 +28,7 @@ def acharUltimoCheckpoint(pasta="."):
     checkpoints=sorted(Path(pasta).glob("checkpointEpoca*.pt"))
     if not checkpoints:
         return None,0
-    ultimo=checkpoints[-1]
+    ultimo=checkpoints[-1]  
     epoca=int(re.search(r"checkpointEpoca(\d+)\.pt",ultimo.name).group(1))
     return ultimo, epoca+1
 
@@ -51,6 +51,15 @@ def desnormalizar(x, media, desvio):                    #retorna para os dados o
     media=t.as_tensor(media,dtype=t.float32,device=x.device)
     desvio=t.as_tensor(desvio,dtype=t.float32,device=x.device)
     return x * desvio + media
+
+#essa funnção está aqui para que, nas primeiras épocas a variável HORIZONTE_MAX seja pequeno, crescendo gradualmente até chegar no valor definido após o epocasParaMaximo ser atingido
+def horizonteAtual(epoca,horizonteMax,nEpocas):
+    horizonteMin=int(horizonteMax/10)
+    #horizonte vai para maximo na metade das epocas
+    epocasParaMaximo=nEpocas*0.8#/2
+    #fracao é entre 0 e 1.0, mas está crescendo proporcionalmente a quantas epocas já passasram
+    fracao=min(1.0,epoca/epocasParaMaximo)
+    return int(horizonteMin+fracao*(horizonteMax-horizonteMin))
 
 class JanelaComHorizonte(Dataset):
     #aqui tenho o HORIZONTE, que é o tamanho máximo de passos futuros que vou querer que a rede aprenda a prever dado o treinamento com a janela passada --> exemplo abaixo
@@ -283,8 +292,8 @@ class CodificacaoPosicional(t.nn.Module):
         return i+posEmb.unsqueeze(0)
 
 class RedeTransformer(t.nn.Module):
-    def __init__(self, dimEstado=18, dimMassa=3, dModel=64, nHeads=4,
-                 nCamadas=6, dimFeedforward=256, dropout=0.1, tamanhoMaximoJanela=50):
+    #def __init__(self, dimEstado=18, dimMassa=3, dModel=64, nHeads=4, nCamadas=6, dimFeedforward=256, dropout=0.1, tamanhoMaximoJanela=50):
+    def __init__(self, dimEstado=18, dimMassa=3, dModel=64, nHeads=4, nCamadas=6, dimFeedforward=256, dropout=0.0, tamanhoMaximoJanela=50):
         super().__init__()
         self.dimEstado=dimEstado
         self.dimMassa=dimMassa
@@ -354,12 +363,12 @@ def lossTotal(previsto, real, ultimoEstadoJanela, massas, dt, pesos):
         "momentoLinear": lossMomentoLinear(previsto, real, massas),
         "momentoAngular": lossMomentoAngular(previsto, real, massas),
         "consistencia": lossConsistenciaYoshida(previsto, ultimoEstadoJanela, massas, dt),
-    }
+    }    
     total = sum(pesos[nome] * valor for nome, valor in termosDaLOSS.items())  #pega cada par de (nome,valor) e itera, passando para TOTAL o valor da soma de todas as LOSSes
     return total, termosDaLOSS
 
 # ================================================================ DIAGNOSTICOS ================================================================
-def baselineDePersistencia(loaderValidacao):
+def baselineDePersistencia(loaderValidacao):        #serve pra responder "a rede realmente aprendeu alguma coisa?" --> mede o MSE entre o ultimo estado e o próximo da janela, e com isso, se a validação em MSE da rede não ficar abaixo disso em algum passo ela não superou o processo de decorar qual o próximo estado
     criterio = t.nn.MSELoss()
     lossAcumulada = 0.0
     for janela, _massa, alvo in loaderValidacao:
@@ -367,21 +376,23 @@ def baselineDePersistencia(loaderValidacao):
         lossAcumulada += criterio(predPersistencia, alvo).item()
     return lossAcumulada / len(loaderValidacao)
 
-def horizontePrevisibilidade(real, previsto):
+def horizontePrevisibilidade(real, previsto):       #responde "por quantos passos posso confiar na rede" --> recebe a traj real e o rollout autorregressivo da rede e diz quantos passos a previsão sobrevive antees de alucinar valores
     escalaReferencia = np.linalg.norm(real - real.mean(axis=0), axis=1).mean()
-    erro = np.linalg.norm(real - previsto, axis=1)
+    erro = np.linalg.norm(real - previsto, axis=1)  #distância em cada passo do real pro previsto
     acimaDoLimiar = np.where(erro > escalaReferencia)[0]
     horizonte = acimaDoLimiar[0] if len(acimaDoLimiar) > 0 else len(erro)
     return horizonte, escalaReferencia
 
 #def probabilidadeTeacherForcing(epoca,k=5.0):
-def probabilidadeTeacherForcing(epoca,k=15.0):
+def probabilidadeTeacherForcing(epoca,nEpocas):
     # fica proximo de 1 no inicio do treino, mas decresce rápido no final, 
     # fazendo com que a rede, após já estar mais precisa, possa aprender como seus pequenos erros podem ser consertados
     # o K é a velocidade de decaimento
     # 𝜎(𝑥)=1/(1+e^(-x))
-    p = k / (k + math.exp(epoca / k))
-    return max(0.0, min(1.0, p))
+    '''p = k / (k + math.exp(epoca / k))
+    return max(0.0, min(1.0, p))'''
+    return max((1-(epoca/nEpocas)),0.2)
+    
 
 # ================================================================ AVALIAÇÃO ================================================================
 def rolloutAutoregressivo(modelo,trajetoriaNormalizada,massaNormalizada,tamanhoJanela, nPassos,device):
@@ -458,6 +469,7 @@ def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,med
 
     return horizontes,errosMedios
 
+
 # ================================================================ TREINO ================================================================
 if __name__ == "__main__":
     # ------------------- Hiperparâmetros -----------------------------
@@ -465,25 +477,36 @@ if __name__ == "__main__":
     D_MODEL = 64
     N_HEADS = 4
     N_CAMADAS = 6
+    #====================================================================================
+    #==================================GARGALO PROVÁVEL==================================
+    #====================================================================================
     DIM_FEEDFORWARD = 256
-    DROPOUT = 0.1
+    #DROPOUT = 0.1
+    DROPOUT = 0.0
+    #====================================================================================
+    #==================================GARGALO PROVÁVEL==================================
+    #====================================================================================
     HORIZONTE_MAX = 80
-    N_EPOCAS = 30
+    N_EPOCAS = 20
     DT = 0.00025                     
     PESOS_LOSS = {
         "estado": 1.0,
         "energia": 0.01,
         "momentoLinear": 0.01,
         "momentoAngular": 0.01,
-        "consistencia": 0.1,
+        #"consistencia": 0.1,
+        "consistencia": 0.0,
     }
+
+    pastaLosses="evolucaoLosses.txt"
+
 
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     print(f"Rodando em: {device}")
     # ------------------- Dados ----------------------
     trajetorias, massas = carregarTrajetorias("simulacoesArtificiais/simulacoes3C")
 
-    nValidacao = max(1, len(trajetorias) // 5)
+    nValidacao = max(1, len(trajetorias) // 5)          #quantidade de amostras que serão usadas nos datasets de trajetórias
     trajetoriasTreino, trajetoriasValidacao = trajetorias[nValidacao:], trajetorias[:nValidacao]
     massasTreino, massasValidacao = massas[nValidacao:], massas[:nValidacao]
 
@@ -491,19 +514,16 @@ if __name__ == "__main__":
     print("Trajetórias de treino:", len(trajetoriasTreino))
     print("Trajetórias de validação:", len(trajetoriasValidacao))
 
-
     media, desvio = calcularNormalizacao(trajetoriasTreino)
     mediaMassa = np.mean(massasTreino, axis=0)
     desvioMassa = np.std(massasTreino, axis=0)
     desvioMassa = np.where(desvioMassa < 1e-8, 1.0, desvioMassa)
 
-    datasetTreino = JanelaComHorizonte(trajetoriasTreino, massasTreino, TAMANHO_JANELA, HORIZONTE_MAX,
-                                        media, desvio, mediaMassa, desvioMassa)
-    datasetValidacao = JanelaProximoEstado(trajetoriasValidacao, massasValidacao, TAMANHO_JANELA,
-                                            media, desvio, mediaMassa, desvioMassa)
+    datasetTreino = JanelaComHorizonte(trajetoriasTreino,massasTreino,TAMANHO_JANELA,HORIZONTE_MAX,media,desvio,mediaMassa,desvioMassa)
+    datasetValidacao =JanelaProximoEstado(trajetoriasValidacao,massasValidacao,TAMANHO_JANELA,media,desvio,mediaMassa,desvioMassa)
 
     '''loaderTreino = DataLoader(datasetTreino, batch_size=32, shuffle=True)
-    loaderValidacao = DataLoader(datasetValidacao, batch_size=32, shuffle=False)'''     #tive que aumentar o batch_size (fazer rodar mais ampstras de uma só vez) para saturar a GPU para tentar ter mais iterações por segundo diminuindo o número das iterações também --> a rede treina com 256 janelas da trajetória ao mesmo tempo e só atualiza a LOSS após terminar tais janelas
+    loaderValidacao = DataLoader(datasetValidacao, batch_size=32, shuffle=False)'''     #tive que aumentar o batch_size (fazer rodar mais ampstras de uma só vez - amostras de trajetórias distintas devido ao shuffle=True) para saturar a GPU para tentar ter mais iterações por segundo diminuindo o número das iterações também --> a rede treina com 256 janelas da trajetórias diferentes ao mesmo tempo e só atualiza a LOSS e seus pesos após terminar tais janelas
     loaderTreino = DataLoader(datasetTreino, batch_size=256, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)     #tira o preparo dos batches do processo principal (python vira paralelo via workers) e usa a memória pinada para acelerar a transferência da CPU para a GPU (um gargalo existente)
     loaderValidacao = DataLoader(datasetValidacao, batch_size=256, shuffle=False)
 
@@ -514,7 +534,8 @@ if __name__ == "__main__":
     # ------------------- Modelo ----------------------------------------
     modelo = RedeTransformer(dModel=D_MODEL, nHeads=N_HEADS, nCamadas=N_CAMADAS,
                               dimFeedforward=DIM_FEEDFORWARD, dropout=DROPOUT).to(device)
-    otimizador = t.optim.Adam(modelo.parameters(), lr=1e-3)     #ATUALIZA OS PARÂMETROS BASEADO NOS GRADIENTES CALCULADOS PELO .backward()
+    #otimizador = t.optim.Adam(modelo.parameters(), lr=1e-3)     #ATUALIZA OS PARÂMETROS BASEADO NOS GRADIENTES CALCULADOS PELO .backward()
+    otimizador = t.optim.Adam(modelo.parameters(), lr=1e-4)
 
     #vou adicionar um scheduler de redução de learning rate de acordo com a função COSSENO, não reativo aos platôs, mas sim uma redução pequena no inicio e no fim e grande no meio
     scheduler=t.optim.lr_scheduler.CosineAnnealingLR(otimizador,T_max=N_EPOCAS)
@@ -522,18 +543,27 @@ if __name__ == "__main__":
     ultimoCheckpoint,epocaInicial=acharUltimoCheckpoint(".")
     if ultimoCheckpoint is not None:
         print(f"Retomando checkpoint: {ultimoCheckpoint.name} (época {epocaInicial})")
-        modelo.load_state_dict(t.load(ultimoCheckpoint, map_location=device))
+        ckpt=t.load(ultimoCheckpoint, map_location=device)
+        modelo.load_state_dict(ckpt["modelo"])
+        otimizador.load_state_dict(ckpt["otimizador"])
+        scheduler.load_state_dict(ckpt["scheduler"])
     else:
         print("Nenhum checkpoint encontrado --> treinando do zero a rede")
     # ------------------- Loop de treino ---------------------------------
-    historicoLossVal = []
+    #historicoLossVal = []
+    NOMES=list(PESOS_LOSS.keys())
+
+
     for epoca in range(epocaInicial, N_EPOCAS + 1):
         modelo.train()
+        horizonteDaEpocaAtual=horizonteAtual(epoca,HORIZONTE_MAX,N_EPOCAS)
         lossTreinoAcumulada = 0.0
+        lossesIndividuaisAcumuladas=t.zeros(5,device=device)
+        nChamadas=0
         #CÁLCULO DA PROBABILIDADE DE TEACHER FORCING DESTA ÉPOCA EM ESPECÍFICO
-        probTF=probabilidadeTeacherForcing(epoca-1)
+        probTF=probabilidadeTeacherForcing(epoca-1,N_EPOCAS)
     
-        for janela, massa, futuros in tqdm(loaderTreino, desc=f"Época {epoca}"):
+        for janela, massa, futuros in tqdm(loaderTreino, desc=f"Época {epoca}   (horizonte da época = {horizonteDaEpocaAtual})"):
         #for janela, massa, futuros in loaderTreino:
             janela, massa, futuros = janela.to(device), massa.to(device), futuros.to(device)
             otimizador.zero_grad() #AQUI OS GRADIENTES CALCULADOS NO BATCH ANTERIOR NÃO PASSAM PARA O PRÓXIMO BATCH
@@ -541,14 +571,15 @@ if __name__ == "__main__":
             B=janela.shape[0]
             janelaAtual = janela
             lossPassos = []
-            for h in range(HORIZONTE_MAX):
+            for h in range(horizonteDaEpocaAtual):
                 alvo = futuros[:, h, :]
                 ultimoEstado = janelaAtual[:, -1, :]  #usado para o cálculo da loss de consistência
                 previsto = modelo(janelaAtual, massa)
 
                 loss, termos = lossTotal(desnormalizar(previsto,media,desvio), desnormalizar(alvo,media,desvio), desnormalizar(ultimoEstado,media,desvio), desnormalizar(massa,mediaMassa,desvioMassa), DT, PESOS_LOSS)
                 lossPassos.append(loss)
-
+                lossesIndividuaisAcumuladas+=t.stack([termos[x].detach().mean() for x in NOMES])     #aqui o detach corta o grafo e o mean passsa os termos do tensor para escalares, tudo isso mantendo na GPU pois está em tensor
+                nChamadas+=1
                 # ================================================================ SHEDULED SAMPLING ================================================================
                 #aqui eu decido para cada amostra do batch se irei usar o valor real -teacher forcing- ou o previsão da própria rede
                 usarReal = t.rand(B, device=device) < probTF   #é basicamente decidir quais batches terão que usar a previsão da rede: gera B numeros aleatorios entre 0 e 1 para cada amostra do batch, então retorna, por exemplo se B=4 [0.83, 0.1, 0.57, 0.3], e se probTF=0.4 o usarReal será [False, True, False, True] --> (B,)
@@ -570,6 +601,12 @@ if __name__ == "__main__":
 
             #lossPassos é uma lista que foi preenchida pela previsao da rede após treinar com a janela dada
             lossFinal = t.stack(lossPassos).mean()  #faz com que cada tensor de lossPassos seja um elemento de um tensor de 1 dimensão, e o .mean() traz a média desses tensores todos, a média entre todos os passos do horizonte definido (definiria o quão bem o moedlo doi em média prevendo HORIZONTE_MAX)
+            
+            
+            
+            
+            
+            
             '''lossFinal.backward()                    #backpropagation --> irá percorrer o grafo computacional do PyTorch de trás pra frente calculando o gradiente da LOSS de acordo com cada parâmetro treinável do modelo, que ficará guardado em .grad de cada parâmetro --> vai definir para qual direçãõ vai ser alterado o parâmetro
 			t.nn.utils.clip_grad_norm_(modelo.parameters(),max_norm=1.0)
             otimizador.step()'''                       #onde há o aprendizado chamando o otimizador para cada parâmetro
@@ -577,10 +614,19 @@ if __name__ == "__main__":
             t.nn.utils.clip_grad_norm_(modelo.parameters(), max_norm=1.0)
             otimizador.step()
             lossTreinoAcumulada += lossFinal.item() #o .item() retira o valor float32 do tensor do torch, sem graafo que se acumula
-        t.save(modelo.state_dict(), f"checkpointEpoca{epoca:03d}.pt")
+        #t.save(modelo.state_dict(), f"checkpointEpoca{epoca:03d}.pt")
         lossTreinoAcumulada /= len(loaderTreino)
-        print(f"Época {epoca:3d} | loss do treino: {lossTreinoAcumulada:.6f}")
+        #print(f"Época {epoca:3d} | loss do treino: {lossTreinoAcumulada:.6f}")
+        est,ener,mlin,mang,cons=(lossesIndividuaisAcumuladas/nChamadas).cpu().tolist()
+        
+
+
+        with open(pastaLosses,"a") as file:
+            file.write(f"EPOCA {epoca} - TOTAL {lossTreinoAcumulada:.8f} | ESTADO {est:.8f} | ENERGIA {ener:.8f} | MOM LIN {mlin:.8f} | MOM ANG {mang:.8f} | CONSIST {cons:.8f}\n")
+            print(f"Época {epoca:3d} | loss do treino: {lossTreinoAcumulada:.6f}")
+
         scheduler.step()
+        t.save({"epoca":epoca,"modelo":modelo.state_dict(),"otimizador":otimizador.state_dict(),"scheduler":scheduler.state_dict()}, f"checkpointEpoca{epoca:03d}.pt")
     
     t.save({
         "state_dict": modelo.state_dict(),
@@ -590,4 +636,4 @@ if __name__ == "__main__":
     print("Modelo salvo em modelo3corpos.pt")
     
     print("\n--- Rollout autoregressivo ---")
-    horizontes, errosMedios = avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,TAMANHO_JANELA,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12, nPassosDoRollout=10000)
+    horizontes, errosMedios = avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,TAMANHO_JANELA,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12, nPassosDoRollout=100)
