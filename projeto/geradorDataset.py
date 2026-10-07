@@ -210,6 +210,7 @@ def rodarSimulacao2Corpos(seed):
             momAng.append(calculaMomAng2Corpos(m1simulacao,m2simulacao,r1,r2,v1,v2))
             if energiaDoSistema[-1]>0:
                 motivoTermino=2
+                break
 
         saverCounter+=1
 
@@ -222,7 +223,7 @@ def rodarSimulacao2Corpos(seed):
         tAtual+=dt
         
     #salva os dados da simulação se não houve colisão --> agora salva
-    if(flag_colisao==0):  
+    if(flag_colisao==0 and motivoTermino!=2):  
         massas=[m1simulacao,m2simulacao]
         
         trajetoria=np.array(trajetoria)#aqui o trajetoria deixa de ser uma lista de arrays para ser uma matriz 2D, melhor para fazer cálculos
@@ -259,7 +260,7 @@ erro_relativo_posicao=[]
 #aqui a seleção indica qual dataset será gerado
 #selecao = 0  -->   3 CORPOS
 #selecao = 1  -->   2 CORPOS
-selecao=0
+selecao=1
 
 if selecao==0: 
     total=TOTALSIMULACOES_3_CORPOS
