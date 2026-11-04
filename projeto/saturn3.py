@@ -19,12 +19,10 @@ import copy
 import math
 import re
 import time
-from pathlib import Path
-
 import numpy as np
 import torch as t
-
 import saturn2 as S
+from pathlib import Path
 
 PASTA_DADOS = "simulacoesArtificiais/simulacoes3C"
 DT_EFETIVO = S.DT_3C * S.SALVAR_A_CADA_3C
@@ -33,30 +31,30 @@ SUBPASSOS = 50
 # 15 (os outros 2 corpos - DR vetor até o outro corpo, DV vel relativa, d distância, 1/d, dr/d³, log d, log m_j, m_j/M, (dr*dv)/d)
 FEAT = 38       #é preciso escrever à mão pois o python não vai contar sozinho os features
 
-# ======================= features =======================
+# ============================================== features ==============================================
 def features(est, m):
     """est (B,18) fisico, m (B,3) fisico -> (B,3,FEAT), um token por corpo."""
-    B = est.shape[0]
-    x = est.reshape(B, 3, 6)
-    r, v = x[..., :3], x[..., 3:]
-    M = m.sum(1, keepdim=True)
-    w = (m / M)[..., None]
-    rc = r - (w * r).sum(1, keepdim=True)          # posicao relativa ao centro de massa
-    vc = v - (w * v).sum(1, keepdim=True)
-    f = [rc, vc, t.log(m)[..., None], (m / M)[..., None]]       #8 números que vão para o 
-    for k in (1, 2):                               # os outros dois corpos, em ordem ciclica
-        j = (t.arange(3, device=est.device) + k) % 3
-        dr, dv = r[:, j] - r, v[:, j] - v
-        d = (dr.pow(2).sum(-1, keepdim=True) + 1e-12).sqrt()
-        f += [dr, dv, d, 1 / d, dr / d ** 3, t.log(d), t.log(m[:, j])[..., None], (m[:, j] / M)[..., None], (dr * dv).sum(-1, keepdim=True) / d]
+    B=est.shape[0]
+    x=est.reshape(B, 3, 6)
+    r,v=x[..., :3], x[..., 3:]
+    M=m.sum(1, keepdim=True)
+    w=(m/M)[..., None]
+    rc=r-(w*r).sum(1,keepdim=True)          # posicao relativa ao centro de massa
+    vc=v-(w*v).sum(1, keepdim=True)         #velocidade relativa ao centro de massa
+    f=[rc,vc,t.log(m)[..., None],(m/M)[..., None]]       #8 números que vão para o 
+    for k in (1,2):                               # os outros dois corpos, em ordem ciclica
+        j=(t.arange(3,device=est.device)+k) % 3        #o arange aqui gera um array/tensor com valores uniformemente espaçados
+        dr,dv=r[:, j] - r, v[:, j] - v
+        d=(dr.pow(2).sum(-1, keepdim=True) + 1e-12).sqrt()
+        f+=[dr,dv,d,1/d,dr/d ** 3,t.log(d),t.log(m[:,j])[..., None],(m[:, j]/M)[..., None],(dr * dv).sum(-1, keepdim=True)/d]
     return t.cat(f, -1)     #concatena tudo em um único tensor
 
 #aqui chamo o integrar() do saturn2, um yoshida de 50 subpassos no CUDA 
-def alvoDe(estado, m):
-    return S.integrar(estado, DT_EFETIVO, m[:, 0], m[:, 1], m[:, 2], SUBPASSOS)
+def alvoDe(estado,m):
+    return S.integrar(estado,DT_EFETIVO,m[:, 0],m[:, 1],m[:, 2],SUBPASSOS)
 
 
-# ======================= modelo =======================
+# ============================================== modelo ==============================================
 class RedeCorpos(t.nn.Module):
     def __init__(self, dModel=256, nHeads=8, nCamadas=6, dimFF=1024):
         super().__init__()
@@ -66,11 +64,10 @@ class RedeCorpos(t.nn.Module):
             um = nome in ("desvio", "desvioMassa", "fStd")
             self.register_buffer(nome, (t.ones if um else t.zeros)(forma))
         self.entrada = t.nn.Linear(FEAT, dModel)        #joga as 38 features para 256 dimensões do Transformer
-        #o Transformer usa a função de ativação GELU ao invés da RELu, com dropout=0
+        #o Transformer usa a função de ativação GELU ao invés da RELu para evitar algum morte de neurônio e para que lide melhor com padrões complexos em comparação com a RELu, que zera tudo que é negativo e retorna o valor caso seja positivo, com dropout=0
         camada = t.nn.TransformerEncoderLayer(d_model=dModel, nhead=nHeads, dim_feedforward=dimFF, dropout=0.0, activation="gelu", batch_first=True, norm_first=True)
         #foi posto o "enabe_nested_tensor=false" pois gerava um aviso uqe podia ser ignorado
         self.encoder = t.nn.TransformerEncoder(camada, nCamadas, norm=t.nn.LayerNorm(dModel), enable_nested_tensor=False)
-        
         #cabeca leva cada token a 6 números, os deltaPosição e deltaVelocidade com pesos e bias zerados
         self.cabeca = t.nn.Linear(dModel, 6)
         t.nn.init.zeros_(self.cabeca.weight)
@@ -105,13 +102,13 @@ class RedeCorpos(t.nn.Module):
         return (self.passoFis(est, m) - self.media) / self.desvio
 
 
-# ======================= dados =======================
+# ============================================== dados ==============================================
 #divide as trajetórias do mesmo jeito do saturn2, com as primeiras len//5 sendo validação
 def prepararDados(device):
-    traj, mas = S.carregarTrajetorias(PASTA_DADOS)
-    nVal = max(1, len(traj) // 5)                   # mesma divisao do saturn2/diagnostico
-    trV, maV, trT, maT = traj[:nVal], mas[:nVal], traj[nVal:], mas[nVal:]
-    #acahatar empilha todos os estados de todas as trajetórias em uma matriz (+- 4 milhoes x 18), comas massas repetidas em M. x[:-1] descarta o último estado de cada trajetória
+    traj,mas=S.carregarTrajetorias(PASTA_DADOS)
+    nVal=max(1,len(traj)//5)                   # mesma divisao do saturn2/diagnostico
+    trV,maV,trT,maT= traj[:nVal], mas[:nVal], traj[nVal:], mas[nVal:]
+    #acahatar empilha todos os estados de todas as trajetórias em uma matriz (+- 4.75 milhoes x 18), com as massas repetidas em M. x[:-1] descarta o último estado de cada trajetória
     #"np.tile(m, (len(x) - 1, 1))" gera um array de m repetidos len(x)-1 vezes na vertical e 1 vez na horizontal, "m = np.array([2, 5, 8])  x = np.array([10, 20, 30, 40])  resultado = np.tile(m, (len(x) - 1, 1))  print(resultado)
     #[[2 5 8]
     #[2 5 8]
@@ -166,7 +163,7 @@ def rotacionar(estado):
     return t.cat([x[..., :3] @ Q, x[..., 3:] @ Q], -1).reshape(B, 18)
 
 
-# ======================= loss =======================
+# ============================================== loss ==============================================
 def lossPasso(modelo, prev, alvo, est, m, modo, piso, wPos):
     B = est.shape[0]
     p, a, e = (x.reshape(B, 3, 6) for x in (prev, alvo, est))   #previsto, alvo e estado de entrada
@@ -200,7 +197,7 @@ def validar(m_, Ev, Mv, batch, n=8, nome="VAL"):
     return (f"  {nome:6s} erro relativo de dv (mediana) {por} | geral={rel.median().item():.4f} | rms(dv err / escala massa)={ab.pow(2).mean().sqrt().item():.4f} | mediana={ab.median().item():.4f}")
 
 
-# ======================= treino =======================
+# ============================================== treino ==============================================
 #o que o main está fazendo, apenas para compreender o que tem aqui:
 #lê os argumentos, carrega os dados, cria o modelo, o EMA, o otimizador e 
 #o agendador de LR, retoma de um checkpoint caso haja um, e repete até o fim os
