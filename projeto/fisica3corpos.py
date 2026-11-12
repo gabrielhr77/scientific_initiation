@@ -1,9 +1,6 @@
-<<<<<<< Updated upstream
 #import torch as t
 import numpy as np
-=======
 import torch as t
->>>>>>> Stashed changes
 from config import G,epsilon
 
 def yoshida4ordem3Corpos(estado,dt,m1,m2,m3):#utiliza algumas vezes o velocity-verlet
