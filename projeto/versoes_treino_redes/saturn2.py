@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import math
 import re #biblioteca que vai me permitir retomar o treinamento de uma certa época, se ter que treinar tudo do zero sempre
 from tqdm import tqdm #biblioteca para visualizar avanço do treinamento
-
+from config import * 
 G=1.0
 epsilon=1e-6
 
@@ -17,6 +17,7 @@ def carregarTrajetorias(pastaNPZ):
     for arquivo in sorted(Path(pastaNPZ).glob("*.npz")):    #pega um arquivo .npz aleatório para termos mais uma camada de aleatoriedade
         dados = np.load(arquivo)
         estado = dados["estado"]
+        #print("FORMATO DO ESTADO",estado.shape[0])
         if estado.ndim < 2 or estado.shape[0] == 0:         #verificação de tamanho inválido --> caso o arquivo tenha a primeira coluna sendo igual a zero isso indica que a simulação foi falha ou já começou em uma colisão ou que ela ocorreu logo nos primeiros passos
             #print(f"[AVISO] pulando {arquivo.name}: trajetória vazia/colisão premtura demais para Yoshida gerar dados válidos")
             continue
@@ -59,7 +60,7 @@ def calcularEscalasFisicas(trajetorias,massas,amostragem):
         momIndividuais.append(t.cat([m1*v1,m2*v2,m3*v3],dim=0))
 
         escalaMomAng.append(calcularMomentoAngular(a,mt))
-    escalaEnergia=t.cat(escalaEnergia).std().clamp_min(1e-8)
+    escalaEnergia = t.cat(escalaEnergia).abs().mean().clamp_min(1e-8)   # MAIS OU MENOS 1/4, 0.25
     escalaMomLin=t.cat(momIndividuais).std().clamp_min(1e-8)
     escalaMomAng=t.cat(escalaMomAng).reshape(-1,3).std().clamp_min(1e-8)
     return escalaEnergia,escalaMomLin,escalaMomAng
@@ -282,6 +283,49 @@ def integradorYoshida4aOrdem(estado,dt,m1,m2,m3):
 
     return t.cat([r1,v1,r2,v2,r3,v3],dim=-1)
 
+'''_yoshidaCompilado=t.compile(integradorYoshida4aOrdem)
+def integrar(estado,dt,m1,m2,m3,n):
+    for _ in range(n):
+        estado=_yoshidaCompilado(estado,dt/n,m1,m2,m3)
+    return estado'''
+def _integrarEager(estado, dt, m1, m2, m3, n):
+    for _ in range(n):
+        estado = integradorYoshida4aOrdem(estado, dt/n, m1, m2, m3)
+    return estado
+
+class _IntegradorCUDAGraph:
+    def __init__(self):
+        self.cache = {}
+
+    @t.no_grad()
+    def __call__(self, estado, dt, m1, m2, m3, n):
+        if estado.device.type != "cuda":
+            return _integrarEager(estado, dt, m1, m2, m3, n)
+        chave = (tuple(estado.shape), float(dt), n)
+        if chave not in self.cache:
+            # buffers estáticos: o grafo grava os endereços de memória, então toda chamada copia para eles
+            sE = estado.clone()
+            sm1, sm2, sm3 = m1.clone(), m2.clone(), m3.clone()
+            # aquecimento em stream separada (exigido antes da captura)
+            s = t.cuda.Stream()
+            s.wait_stream(t.cuda.current_stream())
+            with t.cuda.stream(s):
+                for _ in range(3):
+                    _integrarEager(sE, dt, sm1, sm2, sm3, n)
+            t.cuda.current_stream().wait_stream(s)
+            g = t.cuda.CUDAGraph()
+            with t.cuda.graph(g):
+                sSaida = _integrarEager(sE, dt, sm1, sm2, sm3, n)
+            self.cache[chave] = (g, sE, sm1, sm2, sm3, sSaida)
+        g, sE, sm1, sm2, sm3, sSaida = self.cache[chave]
+        sE.copy_(estado); sm1.copy_(m1); sm2.copy_(m2); sm3.copy_(m3)
+        g.replay()
+        return sSaida.clone()   # clone: a saída estática é sobrescrita no próximo replay
+
+_integradorGrafo = _IntegradorCUDAGraph()
+
+def integrar(estado, dt, m1, m2, m3, n):
+    return _integradorGrafo(estado, dt, m1, m2, m3, n)
 
 # ================================================================ ARQUITETURA DA REDE ================================================================
 class EmbeddingFisico(t.nn.Module):
@@ -410,7 +454,7 @@ def lossTotal(previsto, real, ultimoEstadoJanela, massas, dt, pesos,subpassos,es
         "energia": lossEnergia(previsto, real, massas, escalaEnergia).mean(),
         "momentoLinear": lossMomentoLinear(previsto, real, massas, escalaMomLin).mean(),
         "momentoAngular": lossMomentoAngular(previsto, real, massas, escalaMomAng).mean(),
-        "consistencia": lossConsistenciaYoshida(previsto, ultimoEstadoJanela, massas, dt, subpassos).mean(),
+        "consistencia": (lossConsistenciaYoshida(previsto, ultimoEstadoJanela, massas, dt, subpassos).mean() if pesos["consistencia"] > 0 else previsto.new_zeros(())),
     }    
     total = sum(pesos[nome] * valor for nome, valor in termosDaLOSS.items())  #pega cada par de (nome,valor) e itera, passando para TOTAL o valor da soma de todas as LOSSes
     return total, termosDaLOSS
@@ -473,7 +517,7 @@ def rolloutAutoregressivo(modelo,trajetoriaNormalizada,massaNormalizada,tamanhoJ
             janelaAtual=t.cat([janelaAtual[:, 1:, :],proximo.unsqueeze(1)],dim=1)
     return np.array(previsoes)
 
-def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,amostragem,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12,nPassosDoRollout=100):
+def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,amostragem,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12,nPassosDoRollout=200):
     modelo.eval()
     nTraj = min(len(trajetoriasValidacao), nTrajetoriasMax)
     fig, eixos = plt.subplots(4, 3, figsize=(18, 20))
@@ -510,7 +554,7 @@ def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,amo
 
         ax = eixos[idx]
         passos=np.arange(nPassos)
-        ax.plot(passos, alvoReal[:, 0],label="Real (corpo 1, X)")
+        ax.plot(passos, alvoReal[:, 0], label="Real (corpo 1, X)")
         ax.plot(passos,previstoReal[:,0],'--',label="Predito (corpo 1, X)")
         ax.set_title(f"Traj {idx} | erro médio: {erroMedio:.3f} | horiz.: {horizonte}")
         ax.set_xlabel("Passo")
@@ -528,7 +572,7 @@ def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,amo
     plt.savefig("rollout_validacao.png", dpi=120)
     plt.show()
 
-    print(f"Erro no passo 0: {np.mean(erros0):.4f}")
+    #print(f"Erro no passo 0: {np.mean(erros0):.4f}")
     print(f"\nErro médio entre trajetórias ({nTraj} avaliadas): {np.mean(errosMedios):.4f}")
     print(f"Erro médio do rollout: {np.std(errosMedios):.4f}")
     print(f"Horizonte de previsibilidade — média: {np.mean(horizontes):.2f} | mín/máx: {np.min(horizontes)}/{np.max(horizontes)}")
@@ -537,13 +581,19 @@ def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,amo
 @t.no_grad()
 def metricasUmPasso(modelo, loader, device, media, desvio, mediaMassa, desvioMassa, escalaDelta):
     modelo.eval()
-    acc = {"razaoPersist":0., "mseNorm":0., "dE":0., "dP":0., "dL":0.}; n = 0
+    acc = {"razaoPersist":0., "mseNorm":0., "errPos":0, "errVel":0,"dE":0., "dP":0., "dL":0.}; n = 0
     for janela, massa, alvo in loader:
         janela, massa, alvo = janela.to(device), massa.to(device), alvo.to(device)
         prev = modelo(janela, massa)
         ult = janela[:, -1, :]
         acc["mseNorm"]      += t.mean((prev-alvo)**2).item()
         acc["razaoPersist"] += (t.mean(((prev-alvo)/escalaDelta)**2) / t.mean(((ult-alvo)/escalaDelta)**2)).item()
+
+        err = ((prev-alvo)/escalaDelta)**2
+        posIdx = [0,1,2,6,7,8,12,13,14]; velIdx = [3,4,5,9,10,11,15,16,17]
+        acc["errPos"] = acc.get("errPos",0.) + err[:, posIdx].mean().item()
+        acc["errVel"] = acc.get("errVel",0.) + err[:, velIdx].mean().item()
+
         P, R, M = (desnormalizar(x, media, desvio) for x in (prev, alvo, ult))
         m = desnormalizar(massa, mediaMassa, desvioMassa)
         H0 = calcularHamiltoniano(M, m)
@@ -557,38 +607,36 @@ def metricasUmPasso(modelo, loader, device, media, desvio, mediaMassa, desvioMas
 # ================================================================ TREINO ================================================================
 if __name__ == "__main__":
     # ------------------- Hiperparâmetros -----------------------------
-    N_EPOCAS=20
+    N_EPOCAS=10
     
-    TAMANHO_JANELA=10
+    TAMANHO_JANELA=1#10
     #D_MODEL=64
-    D_MODEL=128
-    N_HEADS=4
+    D_MODEL=256
+    N_HEADS=8       #precisa dividir igualmente o D_MODEL para que tal número de heads funcione --> é melhor eu aumentar o numero de heads do que aumentar a profundidade da rede com mais camadas ou neurônios por camada
     #N_CAMADAS=6
     N_CAMADAS=8
     DIM_FEEDFORWARD=256
     #DROPOUT = 0.1
     DROPOUT=0.0
-    HORIZONTE_MAX=15
+    HORIZONTE_MAX=20
     #uso DT_EFETIVO porque a rede não aprendia direito com a DT sendo tão pequena, agora com o dt efetivo o passo de eprendizado da rede é o mesmo, em proporção, que o do arquivo npz
     DT=0.00025
-    SUBPASSOS_POR_INFO=40   #quantos subpassos o yoshida pula antes de salvar um passo ao gerar o dataset
-    AMOSTRAGEM=20
-    DT_EFETIVO=DT*AMOSTRAGEM#*SUBPASSOS_POR_INFO
+    SUBPASSOS_POR_INFO=50   #quantos subpassos o yoshida pula antes de salvar um passo ao gerar o dataset
+    AMOSTRAGEM=1
+    DT_EFETIVO=DT_3C*SALVAR_A_CADA_3C#AMOSTRAGEM
 
     #caso a loss esteja competindo com a loss de estado vale a pena diminuir seu peso                   
     PESOS_LOSS = {
-        "estado": 10.0,
-        "energia": 40.0,
-        "momentoLinear": 1.0,
+        "estado": 50.0,
+        "energia": 60.0,
+        "momentoLinear": 20.0,
         "momentoAngular": 20.0,
         #"consistencia": 0.1,
-        "consistencia": 0.0001,
+        "consistencia": 0.0,
     }
 
-    pastaLosses="evolucaoLosses.txt"
+    pastaLosses="evolucaoLosses.txt"        #treino geral
     pastaMetricas="metricas.txt"
-
-
 
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     print(f"Rodando em: {device}")
@@ -608,8 +656,10 @@ if __name__ == "__main__":
     desvioMassa = np.std(massasTreino, axis=0)
     desvioMassa = np.where(desvioMassa < 1e-8, 1.0, desvioMassa)
     
-    escalaDelta = calcularEscalaDelta(trajetorias,AMOSTRAGEM,media,desvio)
+    escalaDelta = calcularEscalaDelta(trajetoriasTreino,AMOSTRAGEM,media,desvio)
     escalaDelta=escalaDelta.to(device)
+
+    desvioT = t.as_tensor(desvio, dtype=t.float32, device=device)
 
     escalaEnergia,escalaMomLin,escalaMomAng=calcularEscalasFisicas(trajetoriasTreino,massasTreino,AMOSTRAGEM)
     escalaEnergia,escalaMomLin,escalaMomAng=escalaEnergia.to(device),escalaMomLin.to(device),escalaMomAng.to(device)
@@ -619,7 +669,7 @@ if __name__ == "__main__":
 
     '''loaderTreino = DataLoader(datasetTreino, batch_size=32, shuffle=True)
     loaderValidacao = DataLoader(datasetValidacao, batch_size=32, shuffle=False)'''     #tive que aumentar o batch_size (fazer rodar mais ampstras de uma só vez - amostras de trajetórias distintas devido ao shuffle=True) para saturar a GPU para tentar ter mais iterações por segundo diminuindo o número das iterações também --> a rede treina com 256 janelas da trajetórias diferentes ao mesmo tempo e só atualiza a LOSS e seus pesos após terminar tais janelas
-    loaderTreino = DataLoader(datasetTreino, batch_size=256, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)     #tira o preparo dos batches do processo principal (python vira paralelo via workers) e usa a memória pinada para acelerar a transferência da CPU para a GPU (um gargalo existente)
+    loaderTreino = DataLoader(datasetTreino, batch_size=1024, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)     #tira o preparo dos batches do processo principal (python vira paralelo via workers) e usa a memória pinada para acelerar a transferência da CPU para a GPU (um gargalo existente)
     loaderValidacao = DataLoader(datasetValidacao, batch_size=256, shuffle=False)
     datasetTreinoUmPasso = JanelaProximoEstado(trajetoriasTreino,massasTreino,TAMANHO_JANELA,AMOSTRAGEM,media,desvio,mediaMassa,desvioMassa)
     loaderTreinoUmPasso = DataLoader(datasetTreinoUmPasso, batch_size=256, shuffle=False)
@@ -649,7 +699,8 @@ if __name__ == "__main__":
     #historicoLossVal = []
     NOMES=list(PESOS_LOSS.keys())
     
-    for epoca in range(epocaInicial, N_EPOCAS + 1):
+
+    for epoca in range(epocaInicial, N_EPOCAS):
         modelo.train()
         horizonteDaEpocaAtual=horizonteAtual(epoca,HORIZONTE_MAX,N_EPOCAS)
         lossTreinoAcumulada = 0.0
@@ -658,6 +709,8 @@ if __name__ == "__main__":
         #CÁLCULO DA PROBABILIDADE DE TEACHER FORCING DESTA ÉPOCA EM ESPECÍFICO
         probTF=probabilidadeTeacherForcing(epoca-1,N_EPOCAS)
         #probTF=1.0
+
+        
 
         #aqui é o TREINAMENTO POR MINI-BATCHES e TQDM aplica aquela barra de progresso dahorinha q mostra no terminal durante o treino
         for janela, massa, futuros in tqdm(loaderTreino, desc=f"Época {epoca}   (horizonte da época = {horizonteDaEpocaAtual})"):
@@ -673,7 +726,15 @@ if __name__ == "__main__":
                 ultimoEstado = janelaAtual[:, -1, :]  #usado para o cálculo da loss de consistência
                 previsto = modelo(janelaAtual, massa)
 
-                loss, termos = lossTotal(desnormalizar(previsto,media,desvio), desnormalizar(alvo,media,desvio), desnormalizar(ultimoEstado,media,desvio), desnormalizar(massa,mediaMassa,desvioMassa), DT_EFETIVO, PESOS_LOSS, SUBPASSOS_POR_INFO, escalaDelta, escalaEnergia,escalaMomLin,escalaMomAng)
+                estadoFis=desnormalizar(ultimoEstado,media,desvio)
+                massaFis=desnormalizar(massa,mediaMassa,desvioMassa)
+                with t.no_grad():
+                    '''alvoFis=estadoFis
+                    for _ in range(SUBPASSOS_POR_INFO):
+                        alvoFis=integradorYoshida4aOrdem(alvoFis,DT_EFETIVO/SUBPASSOS_POR_INFO,massaFis[...,0],massaFis[...,1],massaFis[...,2])
+                    '''
+                    alvoFis=integrar(estadoFis,DT_EFETIVO,massaFis[...,0],massaFis[...,1],massaFis[...,2],SUBPASSOS_POR_INFO)
+                loss, termos = lossTotal(desnormalizar(previsto,media,desvio), alvoFis,estadoFis,massaFis, DT_EFETIVO, PESOS_LOSS, SUBPASSOS_POR_INFO, escalaDelta*desvioT, escalaEnergia,escalaMomLin,escalaMomAng)
                 (loss/horizonteDaEpocaAtual).backward()
                 somaLossesParaEvitarRunMemory+=loss.item()
                 
@@ -716,8 +777,10 @@ if __name__ == "__main__":
         with open(pastaMetricas,"a") as file:
             file.write(
                 f"EPOCA {epoca} - " f"TREINO razaoPersist={metricasTreino['razaoPersist']:.6f} mseNorm={metricasTreino['mseNorm']:.6f} "
+                f"errPos {metricasTreino['errPos']:.6f} - " f"errVel={metricasTreino['errVel']:.6f} "
                 f"dE={metricasTreino['dE']:.6f} dP={metricasTreino['dP']:.6e} dL={metricasTreino['dL']:.6e} - "
                 f"\n EPOCA {epoca} VAL    razaoPersist={metricasValidacao['razaoPersist']:.6f} mseNorm={metricasValidacao['mseNorm']:.6f} "
+                f"errPos {metricasValidacao['errPos']:.6f} - " f"errVel={metricasValidacao['errVel']:.6f} "
                 f"dE={metricasValidacao['dE']:.6f} dP={metricasValidacao['dP']:.6e} dL={metricasValidacao['dL']:.6e}\n"
             )
 
@@ -727,13 +790,13 @@ if __name__ == "__main__":
 
         scheduler.step()
         t.save({"epoca":epoca,"modelo":modelo.state_dict(),"otimizador":otimizador.state_dict(),"scheduler":scheduler.state_dict()}, f"checkpointEpoca{epoca:03d}.pt")
-    
+        
     t.save({
         "state_dict": modelo.state_dict(),
         "media": media, "desvio": desvio,
         "mediaMassa": mediaMassa, "desvioMassa": desvioMassa,
-    }, "modelo3corpos.pt")
+    }, "modelo3corpos.pt")  
     print("Modelo salvo em modelo3corpos.pt")
     
     print("\n--- Rollout autoregressivo ---")
-    horizontes, errosMedios = avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,TAMANHO_JANELA,AMOSTRAGEM,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12, nPassosDoRollout=100)
+    horizontes, errosMedios = avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,TAMANHO_JANELA,AMOSTRAGEM,media,desvio,mediaMassa,desvioMassa,device,nTrajetoriasMax=12, nPassosDoRollout=200)
