@@ -32,4 +32,3 @@ def rd(a):
 
 def carregarSimulacao():
     return
-

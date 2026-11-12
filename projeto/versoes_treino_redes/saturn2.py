@@ -510,7 +510,7 @@ def avaliarRollout(modelo,trajetoriasValidacao,massasValidacao,tamanhoJanela,amo
 
         ax = eixos[idx]
         passos=np.arange(nPassos)
-        ax.plot(passos, alvoReal[:, 0],l abel="Real (corpo 1, X)")
+        ax.plot(passos, alvoReal[:, 0],label="Real (corpo 1, X)")
         ax.plot(passos,previstoReal[:,0],'--',label="Predito (corpo 1, X)")
         ax.set_title(f"Traj {idx} | erro médio: {erroMedio:.3f} | horiz.: {horizonte}")
         ax.set_xlabel("Passo")
