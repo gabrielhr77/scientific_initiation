@@ -24,8 +24,8 @@ RAZAO_MASSA_MAX = 6.0
 #============================== META DE GERAÇÃO =================================
 TOTALSIMULACOES_3_CORPOS=4000
 TOTALSIMULACOES_2_CORPOS=4000
-TOTALSIMULACOES_3_CORPOS=300
-TOTALSIMULACOES_2_CORPOS=100
+TOTALSIMULACOES_3_CORPOS=300        #sobreescrevendo valores para poder rodar com um clone do github
+TOTALSIMULACOES_2_CORPOS=100        #sobreescrevendo valores para poder rodar com um clone do github
 
 #============================== CAMINHOS =================================
 PASTA_SAIDA_3_CORPOS="simulacoesArtificiais/simulacoes3C"
@@ -63,13 +63,3 @@ MARGEM_2C=20
 N_MIN_2C=300             
 qMin2C=0.25            
 qMax2C=0.9
-E_ALVO_3C=-0.25
-DT_3C=0.001
-SALVAR_A_CADA_3C=50
-STEPS_3C=100000
-R_ENC_3C=0.25
-R_FUGA_3C=30.0
-MARGEM_3C=20
-N_MIN_3C=300
-Q_MIN_3C=0.25
-Q_MAX_3C=0.9
