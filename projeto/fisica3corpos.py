@@ -1,5 +1,9 @@
+<<<<<<< Updated upstream
 #import torch as t
 import numpy as np
+=======
+import torch as t
+>>>>>>> Stashed changes
 from config import G,epsilon
 
 def yoshida4ordem3Corpos(estado,dt,m1,m2,m3):#utiliza algumas vezes o velocity-verlet
@@ -60,7 +64,7 @@ def yoshida4ordem3Corpos(estado,dt,m1,m2,m3):#utiliza algumas vezes o velocity-v
     r2+=c4*dt*v2
     r3+=c4*dt*v3
 
-    return np.concatenate([r1,v1,r2,v2,r3,v3])
+    return t.cat([r1,v1,r2,v2,r3,v3])
 
 def atualizaAceleracoes_posicoes3Corpos(r1,r2,r3,m1,m2,m3):
     #vetor posição
@@ -72,9 +76,9 @@ def atualizaAceleracoes_posicoes3Corpos(r1,r2,r3,m1,m2,m3):
     rr13=pr13[0]**2 + pr13[1]**2 + pr13[2]**2 + epsilon**2
     rr23=pr23[0]**2 + pr23[1]**2 + pr23[2]**2 + epsilon**2
     #fazendo o inverso para poupar algumas divisões
-    inv_r12=1/(rr12*np.sqrt(rr12))
-    inv_r13=1/(rr13*np.sqrt(rr13))
-    inv_r23=1/(rr23*np.sqrt(rr23))
+    inv_r12=1/(rr12*t.sqrt(rr12))
+    inv_r13=1/(rr13*t.sqrt(rr13))
+    inv_r23=1/(rr23*t.sqrt(rr23))
 
     a1=G*(m2*pr12*inv_r12 + m3*pr13*inv_r13)
     a2=G*(-m1*pr12*inv_r12 + m3*pr23*inv_r23)
@@ -87,13 +91,13 @@ def calculaEnergiaDoSistema3Corpos(estado,m1,m2,m3):
     x2,y2,z2,vx2,vy2,vz2,\
     x3,y3,z3,vx3,vy3,vz3=estado[:18]
 
-    r1=np.array([x1,y1,z1])
-    r2=np.array([x2,y2,z2])
-    r3=np.array([x3,y3,z3])
+    r1=t.tensor([x1,y1,z1])
+    r2=t.tensor([x2,y2,z2])
+    r3=t.tensor([x3,y3,z3])
 
-    r12=np.sqrt((np.linalg.norm(r2-r1))**2 + epsilon**2)
-    r13=np.sqrt((np.linalg.norm(r3-r1))**2 + epsilon**2)
-    r23=np.sqrt((np.linalg.norm(r3-r2))**2 + epsilon**2)
+    r12=t.sqrt((t.linalg.norm(r2-r1))**2 + epsilon**2)
+    r13=t.sqrt((t.linalg.norm(r3-r1))**2 + epsilon**2)
+    r23=t.sqrt((t.linalg.norm(r3-r2))**2 + epsilon**2)
 
     cinetica=((vx1**2+vy1**2+vz1**2)*m1/2+(vx2**2+vy2**2+vz2**2)*m2/2+(vx3**2+vy3**2+vz3**2)*m3/2)
     
@@ -102,7 +106,7 @@ def calculaEnergiaDoSistema3Corpos(estado,m1,m2,m3):
     return cinetica+potencial
 
 def calculaMomLin3Corpos(m1,m2,m3,v1,v2,v3):
-    return np.linalg.norm(m1*v1 + m2*v2 + m3*v3)
+    return t.linalg.norm(m1*v1 + m2*v2 + m3*v3)
 
 def calculaMomAng3Corpos(m1,m2,m3,r1,r2,r3,v1,v2,v3):
-    return m1*np.cross(r1,v1)+m2*np.cross(r2,v2)+m3*np.cross(r3,v3)
+    return m1*t.cross(r1,v1)+m2*t.cross(r2,v2)+m3*t.cross(r3,v3)

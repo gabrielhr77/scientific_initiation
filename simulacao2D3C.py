@@ -353,7 +353,7 @@ j=0
 #flag = 2  -->  simulador HORIZONS 
 #flag = 3  -->  simulador HORIZONS 
 #flag = 4  -->  simulador HORIZONS JUPITER-IO-EUROPA
-flagTipoDeSimulacao=4
+flagTipoDeSimulacao=0
 
 if flagTipoDeSimulacao==0:
     dt=0.00025

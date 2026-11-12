@@ -765,7 +765,7 @@ else:
         N=40
         G=1
         epsilon=1e-6
-        trajetoriaDataSet,massas=carregarEstadosNPZ(104) #NOME DA SIMULAÇÃO A SER TESTADA
+        trajetoriaDataSet,massas=carregarEstadosNPZ(2) #NOME DA SIMULAÇÃO A SER TESTADA
         xt=trajetoriaDataSet[:,0]
         yt=trajetoriaDataSet[:,1]
         zt=trajetoriaDataSet[:,2]
@@ -785,6 +785,24 @@ else:
         x2,y2,z2,vx2,vy2,vz2=xl[0],yl[0],zl[0],vxl[0],vyl[0],vzl[0]#isso substituiria a declaração dos valores de X e Y em estadoTerraLua... burrice minha, simplesmente
 
         steps = len(xt)
+        import numpy as np
+        from pathlib import Path
+
+        AMOSTRAGEM = 20
+        for f in sorted(Path("projeto/simulacoesArtificiais/simulacoes2C").glob("*.npz"))[:200]:
+            d = np.load(f); s = d["estado"]
+            if s.ndim < 2 or len(s) < 2: continue
+            M = d["massas"].sum()
+            r = s[:, 6:9] - s[:, 0:3]; v = s[:, 9:12] - s[:, 3:6]
+            rn = np.linalg.norm(r, axis=1)
+            eps = 0.5*(v**2).sum(1) - M/rn                 # energia específica (G=1)
+            h = np.linalg.norm(np.cross(r, v), axis=1)
+            if eps[0] >= 0: continue
+            a = -M/(2*eps[0]); e = np.sqrt(max(0, 1 + 2*eps[0]*h[0]**2/M**2))
+            T = 2*np.pi*np.sqrt(a**3/M)
+            dtAmostra = (d["tempo"][1]-d["tempo"][0]) * AMOSTRAGEM
+            print(f"{f.stem}: a={a:.2f} e={e:.3f} rp={a*(1-e):.2f} rMin_visto={rn.min():.2f} "
+                f"duracao/T={d['tempo'][-1]/T:.2f} dtAmostra={dtAmostra:.4f} amostras/T={T/dtAmostra:.0f}")
 
 
     if flagTipoDeSimulacao!=5:

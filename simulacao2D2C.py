@@ -104,7 +104,6 @@ def salvarEstadosNPZ(massas,trajetoria,tempo,energia,momAng,momLin,r_min,acelera
                         massas=massas,trajetoria=trajetoria,tempo=tempo,energia=energia,momAng=momAng,momLin=momLin,r_min=r_min,aceleracoes=aceleracoes)
     print(f"Arquivo salvo. Tamanho aproximado: {trajetoria.nbytes/1e6:.1f} MB")
 
-
 #função para carregar os dados depois
 def carregarEstadosNPZ(nome):
     dados=np.load(f"simulacoesArtificiais/simulacao2C{nome}.npz")
@@ -161,7 +160,6 @@ def yoshida4ordem(estado,dt,m1,m2):#utiliza algumas vezes o velocity-verlet
 
     return np.concatenate([r1,v1,r2,v2])
 
-
 def atualizaAceleracoes_posicoes(r1,r2,m1,m2):
     #vetor posição
     pr12=r2-r1
@@ -176,7 +174,6 @@ def atualizaAceleracoes_posicoes(r1,r2,m1,m2):
     a2=G*(-m1*pr12*inv_r12)
 
     return a1,a2
-
 
 def calculaEnergiaDoSistema(estado,m1,m2): #e momentos linear e angular
     x1,y1,vx1,vy1,\
@@ -195,11 +192,9 @@ def calculaEnergiaDoSistema(estado,m1,m2): #e momentos linear e angular
 
     return cinetica+potencial
 
-
 #retorna um valor aleatório de um parâmetro (multiplica por algum valor entre 0 e 1), podendo ser negativo ou positivo
 def rd(a):
     return float(a)*(2*np.random.rand()-1)
-
 
 def rotacionaVetor(v,eixo,angulo):
     pt1=v*np.cos(angulo)
@@ -253,7 +248,6 @@ def validarSimulador(trajetoria,massas,dt,calcularEnergia,calcularMomAng,calcula
     erroReversao=np.linalg.norm(estado-trajetoria[0, :-1])/np.linalg.norm(trajetoria[0, :-1]) #normaliza para tornar o resultado da diferença entre os estados inicial original e após ir e voltar ser relativo
 
     return [desvioEnerg,desvioLin,desvioAng,erroReversao]
-
 
 #============================== VARIÁVEIS DA SIMULAÇÃO =================================
 #salvarDadosHorizonsNPZ(extrair_horizons('simulacoesArtificiais/testeHorizonsLua.txt'),"LUA")
@@ -337,7 +331,7 @@ j=0
 #flag = 2  -->  simulador HORIZONS PLUTÃO-CARONTE - obliquidade 122.5º e 119º - (a componente Z da velocidade aqui é tão grande que impossibilita uma órbita 2D sem a considerar nos cálculos -sem a componente Z ~135 m/s, com Z ~223 m/s- os dados da HORIZONS deveriam ser rotacionados para encontrar a componente Z zerada e permitir uma simulação 2D - projeção da real órbita Caronte-Plutão)
 #flag = 3  -->  simulador HORIZONS MARTE-PHOBOS - obliquidade 25.9º e 26º - (inclinação de Fobos é de ~25º em relação à eclíptica, então o gráfico da distância relativa é sem levar em consideração a amplitude de movimento do eixo Z)
 #flag = 4  -->  simulador HORIZONS JÚPITER-IO - obliquidade 3.13º e 3.17º 
-flagTipoDeSimulacao=0
+flagTipoDeSimulacao=1
 
 if flagTipoDeSimulacao==0:
     dt=0.00025

@@ -176,9 +176,9 @@ def rodarSimulacao(seed):
             motivoTermino=1
             break
         elif houveHiperbolismo:
-            print(f"\nSISTEMA HIPERBÓLICO DETECTADO - seed {seed} - passo {i}")
+            #print(f"\nSISTEMA HIPERBÓLICO DETECTADO - seed {seed} - passo {i}")
             motivoTermino=2
-
+            
         r1=estado[0:3]
         v1=estado[3:6]
         r2=estado[6:9]

@@ -1,0 +1,5 @@
+# Direct dependencies observed in the supplied Python scripts.
+# Versions are not pinned because the working environment was not supplied.
+numpy
+torch
+matplotlib

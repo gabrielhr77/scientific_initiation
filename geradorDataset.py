@@ -131,7 +131,6 @@ def calculaMomAng(m1,m2,m3,r1,r2,r3,v1,v2,v3):
 
 def rodarSimulacao(seed):
     np.random.seed(seed)
-    #rMomentaneo=[]
     momLin=[]
     momAng=[]
     trajetoria=[]
@@ -314,7 +313,7 @@ epsilon=1e-6  #0  #1e-5
 
 
 #============================== SIMULAÇÃO =================================
-total=30
+total=100
 numeroDeExistentes=len(carregarSeedsUsadas("seedsUsadas.txt"))
 inicio=time.perf_counter()
 if __name__ == "__main__":
@@ -337,4 +336,4 @@ if __name__ == "__main__":
         #if len(salvas) <= NUM_SIMUL/7: NUM_SIMUL = (total-numeroDeExistentes)*7 #aqui é vezes sete a quantidade de simulações que ainda preciso pois é a proporção que encontrei de simulações geradas X simulações não colisionais ou hiperbólicas
 fim=time.perf_counter()
 tempoTotal=fim-inicio
-print("tempo para gerar ",numeroDeExistentes," simulações: ", tempoTotal, " segundos")
+if tempoTotal>1: print("tempo para gerar ",numeroDeExistentes," simulações: ", tempoTotal, " segundos")

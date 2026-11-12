@@ -1,0 +1,234 @@
+<mxfile host="app.diagrams.net" modified="2025-01-01T00:00:00.000Z" agent="5.0" etag="component" version="24.0.0" type="device">
+  <diagram name="Diagrama de Componentes" id="component-diagram">
+    <mxGraphModel dx="900" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Componentes -->
+        <!-- SensorHub -->
+        <mxCell id="sensorhub" value="&lt;&lt;component&gt;&gt;&#xa;SensorHub" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="30" y="300" width="160" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="sensorhub-prov" value="ILeituraSensor" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="sensorhub">
+          <mxGeometry y="40" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <!-- Provided interface circle -->
+        <mxCell id="sensorhub-lollipop" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="210" y="325" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="sensorhub-interface-label" value="«provided» ILeituraSensor" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="230" y="322" width="130" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- MotorDeteccao -->
+        <mxCell id="motor-deteccao" value="&lt;&lt;component&gt;&gt;&#xa;MotorDeteccao" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="30" y="120" width="160" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="deteccao-prov" value="IDeteccao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="motor-deteccao">
+          <mxGeometry y="40" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="deteccao-req" value="ILeituraSensor" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="motor-deteccao">
+          <mxGeometry y="70" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <!-- Required interface socket -->
+        <mxCell id="deteccao-socket" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="210" y="200" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="deteccao-interface-label" value="«required» ILeituraSensor" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="230" y="197" width="140" height="20" as="geometry"/>
+        </mxCell>
+        <!-- Provided lollipop for IDeteccao -->
+        <mxCell id="deteccao-prov-lollipop" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="210" y="140" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="deteccao-prov-label" value="«provided» IDeteccao" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="230" y="137" width="120" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- MotorSimulacao -->
+        <mxCell id="motor-simulacao" value="&lt;&lt;component&gt;&gt;&#xa;MotorSimulacao" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="120" width="160" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="simulacao-prov" value="ISimulacao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="motor-simulacao">
+          <mxGeometry y="40" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="simulacao-req1" value="IDeteccao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="motor-simulacao">
+          <mxGeometry y="70" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="simulacao-req2" value="IDadosEdificio" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="motor-simulacao">
+          <mxGeometry y="100" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <!-- Required sockets -->
+        <mxCell id="sim-req1-socket" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="195" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="sim-req2-socket" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="225" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="sim-prov-lollipop" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="140" width="15" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- GerenciadorEdificio -->
+        <mxCell id="ger-edificio" value="&lt;&lt;component&gt;&gt;&#xa;GerenciadorEdificio" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="120" width="180" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="ger-prov" value="IDadosEdificio" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="ger-edificio">
+          <mxGeometry y="40" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="ger-lollipop" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="800" y="145" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="ger-label" value="«provided» IDadosEdificio" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="820" y="142" width="140" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- PainelVigilante -->
+        <mxCell id="painel-vig-comp" value="&lt;&lt;component&gt;&gt;&#xa;PainelVigilante" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="400" width="160" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="vig-prov" value="IDecisaoVigilante" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="painel-vig-comp">
+          <mxGeometry y="40" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="vig-req1" value="ISimulacao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="painel-vig-comp">
+          <mxGeometry y="70" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="vig-req2" value="IDeteccao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="painel-vig-comp">
+          <mxGeometry y="100" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="vig-socket1" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="500" y="450" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="vig-socket2" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="500" y="480" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="vig-lollipop" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="500" y="420" width="15" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- PainelGestor -->
+        <mxCell id="painel-gest-comp" value="&lt;&lt;component&gt;&gt;&#xa;PainelGestor" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="400" width="180" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="gest-prov" value="IDecisaoGestor" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="painel-gest-comp">
+          <mxGeometry y="40" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="gest-req1" value="IDadosEdificio" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="painel-gest-comp">
+          <mxGeometry y="70" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="gest-req2" value="ISimulacao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="painel-gest-comp">
+          <mxGeometry y="100" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="gest-socket1" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="800" y="470" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="gest-socket2" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="800" y="500" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="gest-lollipop" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="800" y="420" width="15" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- GatewayNotificacao -->
+        <mxCell id="gateway" value="&lt;&lt;component&gt;&gt;&#xa;GatewayNotificacao" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="600" width="160" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="gateway-prov" value="INotificacao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="gateway">
+          <mxGeometry y="40" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="gateway-req" value="IDecisaoVigilante" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="gateway">
+          <mxGeometry y="70" width="160" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="gateway-socket" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=none;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="500" y="660" width="15" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="gateway-lollipop" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="500" y="620" width="15" height="15" as="geometry"/>
+        </mxCell>
+
+        <!-- LogPersistencia -->
+        <mxCell id="log" value="&lt;&lt;component&gt;&gt;&#xa;LogPersistencia" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="600" width="180" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="log-prov" value="ILog" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="log">
+          <mxGeometry y="40" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="log-req1" value="IDeteccao" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="log">
+          <mxGeometry y="70" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="log-req2" value="IDecisaoVigilante" style="text;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2" vertex="1" parent="log">
+          <mxGeometry y="100" width="180" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Conexões entre componentes -->
+        <mxCell id="conn1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="sensorhub-lollipop" target="deteccao-socket">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="conn2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="deteccao-prov-lollipop" target="sim-req1-socket">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="conn3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="ger-lollipop" target="sim-req2-socket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="150"/>
+              <mxPoint x="810" y="230"/>
+              <mxPoint x="515" y="230"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="sim-prov-lollipop" target="vig-socket1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="145"/>
+              <mxPoint x="515" y="445"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="ger-lollipop" target="gest-socket1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="810" y="150"/>
+              <mxPoint x="810" y="480"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="vig-lollipop" target="gateway-socket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="425"/>
+              <mxPoint x="515" y="665"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="deteccao-prov-lollipop" target="log-req1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="145"/>
+              <mxPoint x="515" y="660"/>
+              <mxPoint x="600" y="660"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="vig-lollipop" target="log-req2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="425"/>
+              <mxPoint x="515" y="690"/>
+              <mxPoint x="600" y="690"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;startArrow=none;" edge="1" parent="1" source="sim-prov-lollipop" target="gest-socket2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="145"/>
+              <mxPoint x="515" y="510"/>
+              <mxPoint x="800" y="510"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Generated datasets and experiment runs
+simulacoesArtificiais/
+**/simulacoes2C/
+**/simulacoes3C/
+*.npz
+*.npy
+checkpointEpoca*.pt
+ft_checkpointEpoca*.pt
+cpasso*.pt
+*.pth
+*.ckpt
+seedsUsadas*.txt
+diagnostico_resultados/
+diagnostico2C_resultados/
+logs/
+runs/
+
+# Secrets / local files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
