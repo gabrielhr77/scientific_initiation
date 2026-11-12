@@ -22,13 +22,10 @@ ESTADO0_2_CORPOS=np.array([
 RAZAO_MASSA_MAX = 6.0
 
 #============================== META DE GERAÇÃO =================================
-<<<<<<< Updated upstream
 TOTALSIMULACOES_3_CORPOS=4000
 TOTALSIMULACOES_2_CORPOS=4000
-=======
 TOTALSIMULACOES_3_CORPOS=300
 TOTALSIMULACOES_2_CORPOS=100
->>>>>>> Stashed changes
 
 #============================== CAMINHOS =================================
 PASTA_SAIDA_3_CORPOS="simulacoesArtificiais/simulacoes3C"
@@ -42,7 +39,6 @@ SALVAR_A_CADA=40        #salva 1 a cada 40 passos
 MARGEM_SEGURANCA=25     #25 * 40 = 1000 passos antes de haver colisão é a margem
 
 #============================== 3 CORPOS NORMALIZADO =================================
-<<<<<<< Updated upstream
 #unidades: G=1, M=m1+m2+m3=1, E=-1/4 (tempo de travessia ~2.83)
 E_ALVO_3C=-0.25
 DT_3C=0.001              #passo do Yoshida
@@ -67,7 +63,6 @@ MARGEM_2C=20
 N_MIN_2C=300             
 qMin2C=0.25            
 qMax2C=0.9
-=======
 E_ALVO_3C=-0.25
 DT_3C=0.001
 SALVAR_A_CADA_3C=50
@@ -78,4 +73,3 @@ MARGEM_3C=20
 N_MIN_3C=300
 Q_MIN_3C=0.25
 Q_MAX_3C=0.9
->>>>>>> Stashed changes
