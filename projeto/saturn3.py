@@ -14,6 +14,7 @@ Uso:   python3 saturn3.py --passos 100000
 Retoma sozinho do ultimo cpasso*.pt da pasta. Checkpoints: cpasso{passo/1000:04d}k.pt
 Diagnostico: python3 diagnostico.py --prefixo cpasso --checkpoints 20 40 60 80 100   (numeros = milhares de passos)
 """
+
 import argparse
 import copy
 import math
@@ -21,11 +22,13 @@ import re
 import time
 import numpy as np
 import torch as t
-import saturn2 as S
+#import saturn2 as S
+from versoes_treino_redes import saturn2 as S
 from pathlib import Path
+from config import *
 
 PASTA_DADOS = "simulacoesArtificiais/simulacoes3C"
-DT_EFETIVO = S.DT_3C * S.SALVAR_A_CADA_3C
+DT_EFETIVO = DT_3C * SALVAR_A_CADA_3C
 SUBPASSOS = 50
 # 8 (o próprio corpo - 3 posições relativas ao centro de massa, 3 velocidades relativas, log m, m/M) + 15 ()
 # 15 (os outros 2 corpos - DR vetor até o outro corpo, DV vel relativa, d distância, 1/d, dr/d³, log d, log m_j, m_j/M, (dr*dv)/d)

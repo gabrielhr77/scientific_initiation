@@ -14,6 +14,7 @@ Uso:   python3 saturn3.py --passos 100000
 Retoma sozinho do ultimo cpasso*.pt da pasta. Checkpoints: cpasso{passo/1000:04d}k.pt
 Diagnostico: python3 diagnostico.py --prefixo cpasso --checkpoints 20 40 60 80 100   (numeros = milhares de passos)
 """
+
 import argparse
 import copy
 import math
@@ -24,17 +25,18 @@ from pathlib import Path
 import numpy as np
 import torch as t
 
-import saturn2 as S 
+#import saturn2 as S
+from versoes_treino_redes import saturn2 as S
 from config import *
 
 PASTA_DADOS = "simulacoesArtificiais/simulacoes2C"
-DT_EFETIVO = S.DT_2C * S.SALVAR_A_CADA_2C
+DT_EFETIVO = DT_2C * SALVAR_A_CADA_2C
 SUBPASSOS = 50
 # 8 (o próprio corpo - 3 posições relativas ao centro de massa, 3 velocidades relativas, log m, m/M) + 15 ()
 # 15 (o outro corpo - DR vetor até o outro corpo, DV vel relativa, d distância, 1/d, dr/d³, log d, log m_j, m_j/M, (dr*dv)/d)
 FEAT = 23       #é preciso escrever à mão pois o python não vai contar sozinho os features
 
-PESOS_LOSS = {"vel": 1.0, "pos": 1.0, "energia": 1.2, "momLin": 0.3, "momAng": 0.3}
+PESOS_LOSS = {"vel": 1.0, "pos": 1.0, "energia": 0.0, "momLin": 0.0, "momAng": 0.0}
 #tolerâncias
 TOL_E = 1e-4      # erro relativo de energia que conta como "1" 
 TOL_PL = 1e-3     # momentos: em fração de kV (escala típica de dv)
@@ -386,7 +388,8 @@ def validar(m_, Ev, Mv, batch, n=8, nome="VAL"):
         rank.append(m.argsort(1).argsort(1))
     rel, rank, ab = t.cat(rel), t.cat(rank), t.cat(ab)
     por = " ".join(f"{nome}={rel[rank == k].median().item():.4f}" for k, nome in enumerate(("leve", "pesado")))
-    return (f"  {nome:6s} erro relativo de dv (mediana) {por} | geral={rel.median().item():.4f} | rms(dv err / escala massa)={ab.pow(2).mean().sqrt().item():.4f} | mediana={ab.median().item():.4f}")
+    #return (f"  {nome:6s} erro relativo de dv (mediana) {por} | geral={rel.median().item():.4f} | rms(dv err / escala massa)={ab.pow(2).mean().sqrt().item():.4f} | mediana={ab.median().item():.4f}")
+    return (f"  {nome:6s} erro relativo de dv (mediana) {por} | geral={rel.median().item():.4f} | rms(dv err / escala massa)={ab.pow(2).mean().sqrt().item():.4f}")
 
 
 # ======================= treino =======================
@@ -500,8 +503,9 @@ def main():
         if passo % 200 == 0:
             v = (acc / 200).tolist(); acc.zero_()
             det = " ".join(f"{k} {x:.2e}" for k, x in zip(CHAVES, v[1:]))
-            print(f"passo {passo:7d} | loss {v[0]:.3e} ({det}) | lr {scheduler.get_last_lr()[0]:.2e} "
-                f"| {passo / (time.time() - t0 + 1e-9):.1f} it/s", flush=True)        
+            '''print(f"passo {passo:7d} | loss {v[0]:.3e} ({det}) | lr {scheduler.get_last_lr()[0]:.2e} "
+                f"| {passo / (time.time() - t0 + 1e-9):.1f} it/s", flush=True) '''      
+            print(f"passo {passo:7d} | loss {v[0]:.3e} ({det}) | lr {scheduler.get_last_lr()[0]:.2e} ", flush=True)  
         if passo % a.val_cada == 0:
             print(validar(ema, Ev, Mv, B), flush=True)
             print(validar(ema, E, Mm, B, nome="TREINO"), flush=True)
